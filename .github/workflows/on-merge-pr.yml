@@ -1,0 +1,112 @@
+name: Publish & Release
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+concurrency:
+  group: ${{ github.ref }}-publish-release
+  cancel-in-progress: true
+
+jobs:
+  build-and-pack:
+    name: Build & Pack
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup .NET tooling
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0.x
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.10.2
+        with:
+          versionSpec: '5.x'
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Determine version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.10.2
+        with:
+          useConfigFile: true
+          configFilePath: ./.github/gitversion.yml
+      - name: Restore
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release /p:CI=true /p:Version=${{ steps.gitversion.outputs.AssemblySemVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.InformationalVersion }} --no-restore /bl:"${{ runner.temp }}/_artifacts/build_logs/build.binlog"
+      - name: Test
+        run: dotnet test --configuration Release /p:Version=${{ steps.gitversion.outputs.AssemblySemVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} --no-build --verbosity normal
+      - name: Pack NuGet
+        run: dotnet pack --configuration release /p:CI=true -o:package /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:Version=${{ steps.gitversion.outputs.AssemblySemVer }} /p:PackageVersion=${{ steps.gitversion.outputs.AssemblySemVer }}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: nupkg
+          path: |
+            ./package/*.nupkg
+            ./package/*.snupkg
+      - uses: rickstaa/action-create-tag@v1
+        with:
+          tag: v${{ steps.gitversion.outputs.AssemblySemVer }}
+    outputs:
+      tag: v${{ steps.gitversion.outputs.AssemblySemVer }}
+
+  publish-nuget:
+    name: Publish (NuGet)
+    runs-on: ubuntu-latest
+    needs: [build-and-pack]
+    steps:
+      - name: Setup .NET tooling
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0.x
+      - uses: actions/download-artifact@v3
+        with:
+          name: nupkg
+      - name: Publish to NuGet
+        run: dotnet nuget push ./*.nupkg  -s https://api.nuget.org/v3/index.json  -k ${{ secrets.NUGET_TOKEN }}
+
+  changelog-release:
+    name: Update Changelog & Release
+    runs-on: ubuntu-latest
+    needs: [build-and-pack]
+    steps:
+      - name: Setup .NET tooling
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 6.0.x
+      - name: Git Checkout
+        uses: actions/checkout@v4
+      - uses: actions/download-artifact@v3
+        with:
+          name: nupkg
+      - name: Update CHANGELOG
+        id: changelog
+        uses: Requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          tag: ${{needs.build-and-pack.outputs.tag}}
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          draft: false
+          name: ${{needs.build-and-pack.outputs.tag}}
+          body: ${{ steps.changelog.outputs.changes }}
+          token: ${{ github.token }}
+          tag: ${{needs.build-and-pack.outputs.tag}}
+          artifacts: "*.nupkg, *.snupkg"
+      # - name: Install GitReleaseNotes tool
+      #   run: dotnet tool install --global GitReleaseNotes.Tool
+      - name: Generate CHANGELOG.md
+        run: git-release-notes -p nuget -t vnext -o CHANGELOG.md
+      - name: Commit CHANGELOG.md
+        run: |
+            git config --local user.email "action@github.com" && git config --local user.name "GitHub Action" && git commit -am "chore(changelog): update changelog"
