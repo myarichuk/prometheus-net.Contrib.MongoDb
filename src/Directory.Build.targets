@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <ChangelogFile>$(MSBuildThisFileDirectory)/../CHANGELOG.md</ChangelogFile>
+  </PropertyGroup>
+  <ItemGroup>
+      <PackageReference Include="SIL.ReleaseTasks" Version="*" PrivateAssets="all" />
+  </ItemGroup>
+
+  <UsingTask TaskName="SetReleaseNotesProperty" AssemblyFile="SIL.ReleaseTasks.dll" />
+
+  <Target Name="ReleaseNotes" AfterTargets="Pack">
+    <PropertyGroup>
+      <FilterEntries>true</FilterEntries>
+    </PropertyGroup>
+    <SetReleaseNotesProperty ChangelogFile="$(MSBuildThisFileDirectory)/../CHANGELOG.md">
+      <Output TaskParameter="Value" PropertyName="ReleaseNotes" />
+    </SetReleaseNotesProperty>
+  </Target>
+
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
+  </ItemGroup>
+
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory)../, Directory.Build.targets))\Directory.Build.targets" Condition=" '$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory)../, Directory.Build.targets))' != '' " />
+</Project>
