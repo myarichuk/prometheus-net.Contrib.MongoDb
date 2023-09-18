@@ -1,0 +1,6 @@
+# Use Conventional Commits standard (https://www.conventionalcommits.org/en/v1.0.0/)
+mode: MainLine
+major-version-bump-message: "^(build|chore|ci|docs|feat|fix|perf|refactor|refactoring|revert|style|test)(\\([\\w\\s-]*\\))?(!:|:.*\\n\\n((.+\\n)+\\n)?BREAKING CHANGE:\\s.+)"
+minor-version-bump-message: "^(feat|feature)(\\([\\w\\s-]*\\))?:"
+patch-version-bump-message: "^(build|chore|ci|docs|fix|perf|refactor|revert|refactoring|style|test)(\\([\\w\\s-]*\\))?:"
+commit-message-incrementing: Enabled
