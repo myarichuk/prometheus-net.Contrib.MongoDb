@@ -20,9 +20,9 @@
     <!-- Local builds should embed PDBs so we never lose them when a subsequent build occurs. -->
     <DebugType Condition=" '$(CI)' != 'true' ">embedded</DebugType>
 
-    <Company>COMPANY-PLACEHOLDER</Company>
-    <Authors>COMPANY-PLACEHOLDER</Authors>
-    <Copyright>© COMPANY-PLACEHOLDER. All rights reserved.</Copyright>
+    <Company>Michael Yarichuk</Company>
+    <Authors>Michael Yarichuk</Authors>
+    <Copyright>© Michael Yarichuk. All rights reserved.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>

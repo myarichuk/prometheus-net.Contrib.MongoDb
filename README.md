@@ -16,5 +16,5 @@ This is a template for a .Net library project. The main idea is to provide conve
 1. Create a GitHub repository with this project as it's tempalte
 2. Execute ``install-dependencies`` script (if on Windows execute PowerShell script, on Linux execute the Bash script). This will ensure there is correct .Net SDK installed, install dotnet-format tool and execute pre-commit install script
 3. In order for ``nuget.org`` deployment to work, create [NuGet API key](https://docs.microsoft.com/en-us/nuget/nuget-org/publish-a-package#create-api-keys) and set it in the repository ``secrets`` as ``NUGET_TOKEN``.
-4. Replace 'COMPANY-PLACEHOLDER' in ``stylecop.json`` to have a correct value
-5. Replace 'COMPANY-PLACEHOLDER' values in ``Directory.Build.props`` file to proper values
+4. Replace 'Michael Yarichuk' in ``stylecop.json`` to have a correct value
+5. Replace 'Michael Yarichuk' values in ``Directory.Build.props`` file to proper values
