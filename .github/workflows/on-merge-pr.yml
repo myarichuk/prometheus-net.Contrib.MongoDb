@@ -27,7 +27,7 @@ jobs:
         uses: gittools/actions/gitversion/setup@v0.10.2
         with:
           versionSpec: '5.x'
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Determine version
@@ -82,7 +82,7 @@ jobs:
         with:
           dotnet-version: 6.0.x
       - name: Git Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - uses: actions/download-artifact@v3
         with:
           name: nupkg
