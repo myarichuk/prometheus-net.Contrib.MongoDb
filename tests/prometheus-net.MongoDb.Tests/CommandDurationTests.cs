@@ -2,7 +2,7 @@ using EphemeralMongo;
 using MongoDB.Driver;
 using Prometheus;
 
-public class MongoInstrumentationTests
+public class CommandDurationTests
 {
     [Fact]
     public async Task TestInsertOperation()
@@ -31,12 +31,24 @@ public class MongoInstrumentationTests
         });
     }
 
+    [Fact]
+    public async Task TestMongoDeleteMultipleDocuments()
+    {
+        await TestMongoOperation("delete", async collection =>
+        {
+            await collection.InsertManyAsync(new[]
+            {
+                new TestDocument { Id = "1", Name = "Test1" },
+                new TestDocument { Id = "2", Name = "Test2" },
+                new TestDocument { Id = "3", Name = "Test3" },
+            });
+            await collection.DeleteManyAsync(Builders<TestDocument>.Filter.Empty);
+        });
+    }
+
     private async Task TestMongoOperation(string operationType, Func<IMongoCollection<TestDocument>, Task> operation)
     {
         using var ephemeralMongo = MongoRunner.Run();
-
-        // Clear previous commands (useful for test setup)
-        MongoInstrumentation.ClearCommands();
 
         var settings = MongoClientSettings
             .FromConnectionString(ephemeralMongo.ConnectionString)
@@ -44,22 +56,21 @@ public class MongoInstrumentationTests
 
         var client = new MongoClient(settings);
 
-        // Get a database and collection
         var database = client.GetDatabase("test");
         var collection = database.GetCollection<TestDocument>("testCollection");
 
-        // Perform the operation and assert that the Prometheus metric is updated
-        var initialCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success");
+        // perform the operation and assert that the Prometheus metric is updated
+        var initialCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success", "testCollection", "test");
         await operation(collection);
-        var updatedCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success");
+        var updatedCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success", "testCollection", "test");
 
-        Assert.True(updatedCount > initialCount);
+        Assert.True(updatedCount > initialCount); // account for parallelism, so it won't be necessarily +1 difference
     }
 
-    private double GetSampleValue(Histogram metric, string commandType, string status)
+    private double GetSampleValue(Histogram metric, string commandType, string status, string collectionName, string db)
     {
         return metric
-            .WithLabels(commandType, status)
+            .WithLabels(commandType, status, collectionName, db)
             .Count;
     }
 }
@@ -67,5 +78,6 @@ public class MongoInstrumentationTests
 public class TestDocument
 {
     public string Id { get; set; }
+
     public string Name { get; set; }
 }
