@@ -1,20 +1,86 @@
-# Library.Template
+# prometheus-net.MongoDb
 
-This is a template for a .Net library project. The main idea is to provide convenient preconfigured project structure that would utilize [Github Flow](https://docs.github.com/en/get-started/quickstart/github-flow) for development process and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for semantic versioning and generating a change log.
+## Overview
+
+`prometheus-net.MongoDb` is a C# library that provides client-side Prometheus instrumentation for MongoDB operations (instrumenting MongoDB C# Driver)  
+It captures various metrics related to MongoDB commands, errors, and performance, and exports them to Prometheus for monitoring and alerting.
 
 ## Features
 
-* GitHub Actions
-  * When PR is opened, run tests and lint commit messages for [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) standards
-  * When PR is merged, run tests, publish to NuGet, update the changelog file and create GitHub release while using [GitVersion](https://gitversion.net/) to figure out the next version. GitVersion is configured to use Conventional Commits to figure out the next release version.
-* Preconfigured [StyleCop](https://github.com/StyleCop/StyleCop) rules
-* [Pre-Commit](https://pre-commit.com/) configuration and scripts to install the tool and it's hooks
-* Scripts to install dependencies so development can be started quicker
+- Measures MongoDB command durations
+- Counts MongoDB find operations
+- Tracks the number of open cursors
+- Categorizes MongoDB command errors
+- Measures MongoDB command sizes
+- Measures MongoDB document count in operations
 
-## How to start development with this template?
+## Metrics Exposed
 
-1. Create a GitHub repository with this project as it's tempalte
-2. Execute ``install-dependencies`` script (if on Windows execute PowerShell script, on Linux execute the Bash script). This will ensure there is correct .Net SDK installed, install dotnet-format tool and execute pre-commit install script
-3. In order for ``nuget.org`` deployment to work, create [NuGet API key](https://docs.microsoft.com/en-us/nuget/nuget-org/publish-a-package#create-api-keys) and set it in the repository ``secrets`` as ``NUGET_TOKEN``.
-4. Replace 'Michael Yarichuk' in ``stylecop.json`` to have a correct value
-5. Replace 'Michael Yarichuk' values in ``Directory.Build.props`` file to proper values
+### Command Duration (`mongodb_command_duration_seconds`)
+
+Histogram metric that measures the duration of MongoDB commands in seconds.
+
+- Labels: `command_type`, `status`, `target_collection`, `target_db`
+
+### Find Operations (`mongodb_find_operations_total`)
+
+Counter metric that counts the total number of MongoDB find operations.
+
+- Labels: `target_collection`, `target_db`
+
+### Open Cursors (`mongodb_open_cursors`)
+
+Gauge metric that tracks the number of open cursors.
+
+- Labels: `target_collection`, `target_db`
+
+### Command Errors (`mongodb_command_errors_total`)
+
+Counter metric that counts the total number of MongoDB command errors.
+
+- Labels: `command_type`, `error_type`, `target_collection`, `target_db`
+
+### Command Size (`mongodb_command_size_bytes`)
+
+Histogram metric that measures the size of MongoDB commands in bytes.
+
+- Labels: `command_type`, `target_collection`, `target_db`
+
+### Command Document Count (`mongodb_command_document_count`)
+
+Histogram metric that measures the document count in MongoDB operations.
+
+- Labels: `command_type`, `target_collection`, `target_db`
+
+## Usage Example
+
+Here's a simple example to instrument your MongoDB client:
+
+```cs
+using MongoDB.Driver;
+
+var settings = MongoClientSettings.FromConnectionString("your_connection_string_here");
+settings = settings.InstrumentForPrometheus();
+
+var client = new MongoClient(settings);
+```
+
+## Installation
+
+This library is available as a NuGet package. To install, run:
+
+```
+Install-Package prometheus-net.MongoDb
+```
+
+## Contributing
+
+If you'd like to contribute, please fork the repository and use a feature branch. Pull requests are warmly welcome.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+Feel free to add or modify any sections as you see fit for your project!
