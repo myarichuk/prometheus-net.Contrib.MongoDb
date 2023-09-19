@@ -104,5 +104,8 @@ jobs:
           tag: ${{needs.build-and-pack.outputs.tag}}
           artifacts: "*.nupkg, *.snupkg"
       - name: Commit CHANGELOG.md
-        run: |
-            git config --local user.email "action@github.com" && git config --local user.name "GitHub Action" && git commit -am "chore(changelog): update changelog"
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          branch: main
+          commit_message: 'docs: update CHANGELOG.md for ${{ github.ref_name }} [skip ci]'
+          file_pattern: CHANGELOG.md
