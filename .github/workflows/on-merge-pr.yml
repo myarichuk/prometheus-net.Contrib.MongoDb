@@ -103,8 +103,8 @@ jobs:
           token: ${{ github.token }}
           tag: ${{needs.build-and-pack.outputs.tag}}
           artifacts: "*.nupkg, *.snupkg"
-      - name: Install GitReleaseNotes tool
-        run: dotnet tool install --global GitReleaseNotes.Tool
+      # - name: Install GitReleaseNotes tool
+      #   run: dotnet tool install --global GitReleaseNotes.Tool
       - name: Generate CHANGELOG.md
         run: git-release-notes -p nuget -t vnext -o CHANGELOG.md
       - name: Commit CHANGELOG.md
