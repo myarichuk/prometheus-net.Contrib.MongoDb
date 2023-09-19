@@ -12,7 +12,7 @@
     <PropertyGroup>
       <FilterEntries>true</FilterEntries>
     </PropertyGroup>
-    <SetReleaseNotesProperty ChangelogFile="$(MSBuildThisFileDirectory)/../CHANGELOG.md">
+    <SetReleaseNotesProperty ChangelogFile="$(MSBuildThisFileDirectory)../CHANGELOG.md">
       <Output TaskParameter="Value" PropertyName="ReleaseNotes" />
     </SetReleaseNotesProperty>
   </Target>
