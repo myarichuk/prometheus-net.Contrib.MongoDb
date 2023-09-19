@@ -80,7 +80,3 @@ If you'd like to contribute, please fork the repository and use a feature branch
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Feel free to add or modify any sections as you see fit for your project!
