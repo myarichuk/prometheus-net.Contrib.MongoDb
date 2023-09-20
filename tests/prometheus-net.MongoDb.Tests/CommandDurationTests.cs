@@ -60,9 +60,9 @@ public class CommandDurationTests
         var collection = database.GetCollection<TestDocument>("testCollection");
 
         // perform the operation and assert that the Prometheus metric is updated
-        var initialCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success", "testCollection", "test");
+        var initialCount = GetSampleValue(MetricsStore.CommandDuration, operationType, "success", "testCollection", "test");
         await operation(collection);
-        var updatedCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success", "testCollection", "test");
+        var updatedCount = GetSampleValue(MetricsStore.CommandDuration, operationType, "success", "testCollection", "test");
 
         Assert.True(updatedCount > initialCount); // account for parallelism, so it won't be necessarily +1 difference
     }
