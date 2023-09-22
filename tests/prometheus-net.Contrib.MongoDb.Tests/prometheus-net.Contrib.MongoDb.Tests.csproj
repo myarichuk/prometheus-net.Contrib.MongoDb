@@ -25,4 +25,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Library\prometheus-net.Contrib.MongoDb.csproj" />
+  </ItemGroup>
+
 </Project>
