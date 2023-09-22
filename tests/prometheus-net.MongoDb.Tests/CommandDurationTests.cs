@@ -1,6 +1,8 @@
 using EphemeralMongo;
 using MongoDB.Driver;
 using Prometheus;
+using PrometheusNet.MongoDb;
+using PrometheusNet.MongoDb.Handlers;
 
 public class CommandDurationTests
 {
@@ -27,7 +29,15 @@ public class CommandDurationTests
     {
         await TestMongoOperation("find", async collection =>
         {
-            await collection.FindAsync(x => x.Id == "1");
+            for (int i = 0; i < 300; i++)
+            {
+                await collection.InsertOneAsync(new TestDocument { Id = i.ToString(), Name = "Test1" });
+            }
+            
+            var docs = (await collection.FindAsync(x => x.Id != "1", new FindOptions<TestDocument>
+            {
+                BatchSize = 100
+            })).ToList();
         });
     }
 
@@ -59,10 +69,15 @@ public class CommandDurationTests
         var database = client.GetDatabase("test");
         var collection = database.GetCollection<TestDocument>("testCollection");
 
+        if (!MetricProviderRegistrar.TryGetProvider<CommandDurationProvider>(out var provider))
+        {
+            throw new Exception($"Failed to fetch an instance of {nameof(CommandDurationProvider)}");
+        }
+
         // perform the operation and assert that the Prometheus metric is updated
-        var initialCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success", "testCollection", "test");
+        var initialCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
         await operation(collection);
-        var updatedCount = GetSampleValue(MongoInstrumentation.CommandDuration, operationType, "success", "testCollection", "test");
+        var updatedCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
 
         Assert.True(updatedCount > initialCount); // account for parallelism, so it won't be necessarily +1 difference
     }
