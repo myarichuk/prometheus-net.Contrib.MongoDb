@@ -1,18 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
+    <RootNamespace>PrometheusNet.MongoDb</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <None Include="..\..\CHANGELOG.md" Link="CHANGELOG.md" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="MongoDB.Driver" Version="*">
-        <PrivateAssets>all</PrivateAssets>
-    </PackageReference>        
-    <PackageReference Include="prometheus-net" Version="*" />
-    <PackageReference Include="System.Text.Json" Version="*">
-        <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+    <PackageReference Include="MongoDB.Driver" Version="*"/>
+    <PackageReference Include="prometheus-net" Version="*"/>        
+    <PackageReference Include="PubSub" Version="*"/>
+    <PackageReference Include="System.Text.Json" Version="*"/>
       
   </ItemGroup>
 </Project>
