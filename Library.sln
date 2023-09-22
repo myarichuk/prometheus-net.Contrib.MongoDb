@@ -2,8 +2,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32825.248
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "prometheus-net.MongoDb", "src\Library\prometheus-net.MongoDb.csproj", "{24361E4F-5C04-461B-9F9F-282BBD10B30F}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E4D7A95D-AEAD-4B22-B232-A3F4705B32B9}"
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
@@ -27,7 +25,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 		.github\workflows\on-pull-request.yml = .github\workflows\on-pull-request.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "prometheus-net.MongoDb.Tests", "tests\prometheus-net.MongoDb.Tests\prometheus-net.MongoDb.Tests.csproj", "{3B7771B6-F2C3-4ADB-A08F-8A146D14826B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "prometheus-net.Contrib.MongoDb", "src\Library\prometheus-net.Contrib.MongoDb.csproj", "{17E9E631-3172-448A-9746-603732765E75}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "prometheus-net.Contrib.MongoDb.Tests", "tests\prometheus-net.Contrib.MongoDb.Tests\prometheus-net.Contrib.MongoDb.Tests.csproj", "{CDE113D8-D2CF-482C-AF85-E11B6628B576}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,14 +35,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{24361E4F-5C04-461B-9F9F-282BBD10B30F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{24361E4F-5C04-461B-9F9F-282BBD10B30F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{24361E4F-5C04-461B-9F9F-282BBD10B30F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{24361E4F-5C04-461B-9F9F-282BBD10B30F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3B7771B6-F2C3-4ADB-A08F-8A146D14826B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3B7771B6-F2C3-4ADB-A08F-8A146D14826B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3B7771B6-F2C3-4ADB-A08F-8A146D14826B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3B7771B6-F2C3-4ADB-A08F-8A146D14826B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17E9E631-3172-448A-9746-603732765E75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17E9E631-3172-448A-9746-603732765E75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17E9E631-3172-448A-9746-603732765E75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17E9E631-3172-448A-9746-603732765E75}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CDE113D8-D2CF-482C-AF85-E11B6628B576}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CDE113D8-D2CF-482C-AF85-E11B6628B576}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CDE113D8-D2CF-482C-AF85-E11B6628B576}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CDE113D8-D2CF-482C-AF85-E11B6628B576}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
