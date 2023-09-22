@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <RootNamespace>PrometheusNet.MongoDb</RootNamespace>
+    <RootNamespace>PrometheusNet.Contrib.MongoDb</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <None Include="..\..\CHANGELOG.md" Link="CHANGELOG.md" />
