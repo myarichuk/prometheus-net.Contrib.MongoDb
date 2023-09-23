@@ -4,6 +4,8 @@ using Prometheus;
 using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Handlers;
 
+namespace PrometheusNet.MongoDb.Tests;
+
 public class CommandDurationTests
 {
     [Fact]

@@ -6,7 +6,6 @@ using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
 using PrometheusNet.MongoDb.Events;
-using PubSub;
 #pragma warning disable SA1503
 #pragma warning disable SA1201
 
@@ -74,7 +73,7 @@ public static class MongoInstrumentation
                 TargetDatabase = GetDatabase(command),
                 TargetCollection = GetCollection(e.CommandName, command),
             };
-            Hub.Default.Publish(commandEvent);
+            EventHub.Default.Publish(commandEvent);
         }
     }
 
@@ -95,7 +94,7 @@ public static class MongoInstrumentation
                 Reply = e.Reply.ToDictionary(),
                 CursorId = long.TryParse(command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
             };
-            Hub.Default.Publish(commandEvent);
+            EventHub.Default.Publish(commandEvent);
         }
     }
 
@@ -116,7 +115,7 @@ public static class MongoInstrumentation
             CursorId = long.TryParse(command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
         };
 
-        Hub.Default.Publish(commandEvent);
+        EventHub.Default.Publish(commandEvent);
     }
 
     private static MongoOperationType GetOperationType(string commandName)

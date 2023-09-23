@@ -1,8 +1,8 @@
-# prometheus-net.MongoDb
+# prometheus-net.Contrib.MongoDb
 
 ## Overview
 
-`prometheus-net.MongoDb` is a C# library that provides client-side Prometheus instrumentation for MongoDB operations (instrumenting MongoDB C# Driver)  
+`prometheus-net.Contrib.MongoDb` is a C# library that provides client-side Prometheus instrumentation for MongoDB operations (instrumenting MongoDB C# Driver)  
 It captures various metrics related to MongoDB commands, errors, and performance, and exports them to Prometheus for monitoring and alerting.
 
 **Note:** This library is still in development and more metrics will be added

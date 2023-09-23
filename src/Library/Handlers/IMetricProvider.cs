@@ -2,7 +2,7 @@
 
 namespace PrometheusNet.MongoDb.Handlers;
 
-public interface IMetricProvider
+internal interface IMetricProvider
 {
     void Handle(MongoCommandEventStart e);
 

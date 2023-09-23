@@ -12,7 +12,7 @@ namespace PrometheusNet.MongoDb.Handlers;
 /// Provides functionality to track metrics related to MongoDB cursors.
 /// Implements the <see cref="IMetricProvider"/> interface.
 /// </summary>
-public class CursorMetricsProvider : IMetricProvider, IDisposable
+internal class CursorMetricsProvider : IMetricProvider, IDisposable
 {
     private const int CursorTimeoutMilliseconds = 1000 * 60 * 2; // 2 min
 
