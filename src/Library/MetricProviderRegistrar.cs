@@ -1,13 +1,12 @@
 ﻿using System.Collections.Concurrent;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
-using PubSub;
 
 // ReSharper disable CollectionNeverQueried.Local
 
 namespace PrometheusNet.MongoDb;
 
-public static class MetricProviderRegistrar
+internal static class MetricProviderRegistrar
 {
     private static readonly string[] ExcludedAssemblyPrefixes =
     {
@@ -24,9 +23,9 @@ public static class MetricProviderRegistrar
             var metricProvider = (IMetricProvider)Activator.CreateInstance(metricProviderType);
             MetricsProviders.Add(metricProvider);
 
-            Hub.Default.Subscribe<MongoCommandEventStart>(metricProvider.Handle);
-            Hub.Default.Subscribe<MongoCommandEventFailure>(metricProvider.Handle);
-            Hub.Default.Subscribe<MongoCommandEventSuccess>(metricProvider.Handle);
+            EventHub.Default.Subscribe<MongoCommandEventStart>(metricProvider.Handle);
+            EventHub.Default.Subscribe<MongoCommandEventFailure>(metricProvider.Handle);
+            EventHub.Default.Subscribe<MongoCommandEventSuccess>(metricProvider.Handle);
         }
     }
 
