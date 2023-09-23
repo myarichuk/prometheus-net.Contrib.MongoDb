@@ -1,12 +1,11 @@
 ﻿using Prometheus;
 using PrometheusNet.MongoDb.Events;
+using PrometheusNet.MongoDb.Handlers;
 
-// ReSharper disable UnusedMember.Global
-#pragma warning disable SA1413
-
-namespace PrometheusNet.MongoDb.Handlers;
-
-internal class CommandResponseSizeProvider: IMetricProvider
+/// <summary>
+/// Provides metrics related to the size of MongoDB command responses.
+/// </summary>
+internal class CommandResponseSizeProvider : IMetricProvider
 {
     /// <summary>
     /// Histogram metric to measure the size of MongoDB command responses.
@@ -18,13 +17,22 @@ internal class CommandResponseSizeProvider: IMetricProvider
         new HistogramConfiguration
         {
             LabelNames = new[] { "command_type", "target_collection", "target_db" },
-            Buckets = new[] { 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0, 50000.0, 100000.0, double.PositiveInfinity }
+            Buckets = new[] { 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0, 50000.0, 100000.0, double.PositiveInfinity },
         });
 
+    /// <summary>
+    /// Handles the start of a MongoDB command event.
+    /// </summary>
+    /// <param name="e">The event data.</param>
     public void Handle(MongoCommandEventStart e)
     {
+        // Intentionally left blank
     }
 
+    /// <summary>
+    /// Handles the successful completion of a MongoDB command event.
+    /// </summary>
+    /// <param name="e">The event data.</param>
     public void Handle(MongoCommandEventSuccess e)
     {
         try
@@ -37,10 +45,16 @@ internal class CommandResponseSizeProvider: IMetricProvider
         }
         catch (OverflowException ex)
         {
+            // Handle exception
         }
     }
 
+    /// <summary>
+    /// Handles the failure of a MongoDB command event.
+    /// </summary>
+    /// <param name="e">The event data.</param>
     public void Handle(MongoCommandEventFailure e)
     {
+        // Intentionally left blank
     }
 }
