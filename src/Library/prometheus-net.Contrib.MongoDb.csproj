@@ -2,16 +2,20 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <RootNamespace>PrometheusNet.Contrib.MongoDb</RootNamespace>
-    <PackageReadmeFile>..\..\README.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="..\..\CHANGELOG.md" Link="CHANGELOG.md" />
+    <None Include="$(SolutionDir)CHANGELOG.md" Link="CHANGELOG.md" />
+    <None Include="$(SolutionDir)README.md">
+        <Pack>True</Pack>
+        <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="MongoDB.Driver" Version="2.*"/>
-    <PackageReference Include="prometheus-net" Version="*"/>        
-    <PackageReference Include="PubSub" Version="*"/>
-    <PackageReference Include="System.Text.Json" Version="*"/>
+    <PackageReference Include="MongoDB.Driver" Version="2.*" />
+    <PackageReference Include="prometheus-net" Version="*" />        
+    <PackageReference Include="PubSub" Version="*" />
+    <PackageReference Include="System.Text.Json" Version="*" />
       
   </ItemGroup>
 </Project>
