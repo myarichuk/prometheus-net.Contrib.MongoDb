@@ -5,52 +5,46 @@
 `prometheus-net.MongoDb` is a C# library that provides client-side Prometheus instrumentation for MongoDB operations (instrumenting MongoDB C# Driver)  
 It captures various metrics related to MongoDB commands, errors, and performance, and exports them to Prometheus for monitoring and alerting.
 
-## Features
-
-- Measures MongoDB command durations
-- Counts MongoDB find operations
-- Tracks the number of open cursors
-- Categorizes MongoDB command errors
-- Measures MongoDB command sizes
-- Measures MongoDB document count in operations
+**Note:** This library is still in development and more metrics will be added
 
 ## Metrics Exposed
 
-### Command Duration (`mongodb_command_duration_seconds`)
+### Command Duration (`mongodb_client_command_duration`)
 
 Histogram metric that measures the duration of MongoDB commands in seconds.
 
 - Labels: `command_type`, `status`, `target_collection`, `target_db`
 
-### Find Operations (`mongodb_find_operations_total`)
-
-Counter metric that counts the total number of MongoDB find operations.
-
-- Labels: `target_collection`, `target_db`
-
-### Open Cursors (`mongodb_open_cursors`)
+### Open Cursors Count (`mongodb_client_open_cursors_count`)
 
 Gauge metric that tracks the number of open cursors.
 
 - Labels: `target_collection`, `target_db`
 
-### Command Errors (`mongodb_command_errors_total`)
+### Open Cursors Duration (`mongodb_client_open_cursors_duration`)
+
+Histogram metric that tracks the number of open cursors.
+
+- Labels: `target_collection`, `target_db`
+
+### Open Cursor Document Count (`mongodb_client_cursor_document_count`)
+
+Summary metric that measures the document count fetched by a cursor.
+
+- Labels: `target_collection`, `target_db`
+
+### Command Errors (`mongodb_client_command_errors_total`)
 
 Counter metric that counts the total number of MongoDB command errors.
 
 - Labels: `command_type`, `error_type`, `target_collection`, `target_db`
 
-### Command Size (`mongodb_command_size_bytes`)
+### Command Size (`mongodb_command_response_size`)
 
 Histogram metric that measures the size of MongoDB commands in bytes.
 
 - Labels: `command_type`, `target_collection`, `target_db`
 
-### Command Document Count (`mongodb_command_document_count`)
-
-Histogram metric that measures the document count in MongoDB operations.
-
-- Labels: `command_type`, `target_collection`, `target_db`
 
 ## Usage Example
 

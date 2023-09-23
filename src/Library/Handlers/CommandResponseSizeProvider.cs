@@ -13,11 +13,11 @@ namespace PrometheusNet.MongoDb.Handlers
         /// Buckets are configured to capture various ranges of response sizes.
         /// </summary>
         public static readonly Histogram CommandResponseSize = Metrics.CreateHistogram(
-            "mongodb_command_response_size_bytes", // Metric name
-            "Size of the MongoDB command responses in bytes", // Help text
+            "mongodb_command_response_size", // Metric name
+            "Size of the MongoDB command responses (in bytes)", // Help text
             new HistogramConfiguration
             {
-                LabelNames = new[] { "target_collection", "target_db" },
+                LabelNames = new[] { "command_type", "target_collection", "target_db" },
                 Buckets = new[] { 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0, 50000.0, 100000.0, double.PositiveInfinity }
             });
 
@@ -30,11 +30,9 @@ namespace PrometheusNet.MongoDb.Handlers
             try
             {
                 var replySize = e.RawReply.Length;
-                var targetCollection = e.TargetCollection;
-                var targetDatabase = e.TargetDatabase;
 
                 CommandResponseSize
-                    .WithLabels(targetCollection, targetDatabase)
+                    .WithLabels(e.OperationRawType, e.TargetCollection, e.TargetDatabase)
                     .Observe(replySize);
             }
             catch (OverflowException ex)
