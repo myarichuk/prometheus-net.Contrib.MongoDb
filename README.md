@@ -64,7 +64,7 @@ var client = new MongoClient(settings);
 This library is available as a NuGet package. To install, run:
 
 ```
-Install-Package prometheus-net.MongoDb
+Install-Package prometheus-net.Contrib.MongoDb
 ```
 
 ## Contributing
