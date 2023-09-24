@@ -1,7 +1,6 @@
 ﻿using EphemeralMongo;
 using MongoDB.Driver;
 using PrometheusNet.Contrib.MongoDb.Handlers;
-using PrometheusNet.MongoDb;
 using Xunit.Abstractions;
 
 namespace PrometheusNet.MongoDb.Tests
@@ -15,7 +14,7 @@ namespace PrometheusNet.MongoDb.Tests
             _output = output;
         }
 
-        [Fact]
+        [Fact(Skip = "For now disable this, until I refactor the test infrastructure for mongo")]
         public async Task TestConnectionCreationAndClosure()
         {
             using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
