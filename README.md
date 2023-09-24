@@ -5,6 +5,12 @@
 `prometheus-net.Contrib.MongoDb` is a C# library that provides client-side Prometheus instrumentation for MongoDB operations (instrumenting MongoDB C# Driver)  
 It captures various metrics related to MongoDB commands, errors, and performance, and exports them to Prometheus for monitoring and alerting.
 
+## The Why
+
+Why create another metrics library for MongoDB when there's already [mongodb_exporter](https://github.com/percona/mongodb_exporter)?  
+It is true that `mongodb_exporter` is a great tool for monitoring MongoDB, but it is a server-side tool that requires a separate process to run, possibly docker or other mode of deployment. 
+On top of that, it "actively" gathers information by polling MongoDB while this exporter will do it "passively" by instrumenting the MongoDB C# Driver, without the need to run a separate process.
+
 **Note:** This library is still in development and more metrics will be added
 
 ## Metrics Exposed
