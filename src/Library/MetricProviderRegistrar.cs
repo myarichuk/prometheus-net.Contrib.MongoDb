@@ -16,8 +16,35 @@ internal static class MetricProviderRegistrar
 
     private static bool _isRegistered;
 
+    // just in case, for testing mostly
+    static MetricProviderRegistrar() => RegisterAll();
+
     // needed to prevent GC from collecting metric providers
-    private static readonly ConcurrentBag<IMetricProvider> MetricsProviders = new();
+    private static readonly ConcurrentDictionary<Type, IMetricProvider> MetricsProviders = new();
+
+    public static void ReplaceForTests<TProvider>(TProvider newProvider)
+        where TProvider : class, IMetricProvider
+    {
+        if (MetricsProviders.TryRemove(typeof(TProvider), out var removedProvider))
+        {
+            EventHub.Default.Unsubscribe<MongoCommandEventStart>(removedProvider.Handle);
+            EventHub.Default.Unsubscribe<MongoCommandEventFailure>(removedProvider.Handle);
+            EventHub.Default.Unsubscribe<MongoCommandEventSuccess>(removedProvider.Handle);
+            EventHub.Default.Unsubscribe<MongoConnectionOpenedEvent>(removedProvider.Handle);
+            EventHub.Default.Unsubscribe<MongoConnectionClosedEvent>(removedProvider.Handle);
+            EventHub.Default.Unsubscribe<MongoConnectionFailedEvent>(removedProvider.Handle);
+        }
+
+        if (MetricsProviders.TryAdd(typeof(TProvider), newProvider))
+        {
+            EventHub.Default.Subscribe<MongoCommandEventStart>(newProvider.Handle);
+            EventHub.Default.Subscribe<MongoCommandEventFailure>(newProvider.Handle);
+            EventHub.Default.Subscribe<MongoCommandEventSuccess>(newProvider.Handle);
+            EventHub.Default.Subscribe<MongoConnectionOpenedEvent>(newProvider.Handle);
+            EventHub.Default.Subscribe<MongoConnectionClosedEvent>(newProvider.Handle);
+            EventHub.Default.Subscribe<MongoConnectionFailedEvent>(newProvider.Handle);
+        }
+    }
 
     public static void RegisterAll()
     {
@@ -34,7 +61,7 @@ internal static class MetricProviderRegistrar
         foreach (var metricProviderType in EnumerateIMetricsHandlers())
         {
             var metricProvider = (IMetricProvider)Activator.CreateInstance(metricProviderType);
-            MetricsProviders.Add(metricProvider);
+            MetricsProviders.TryAdd(metricProviderType, metricProvider);
 
             EventHub.Default.Subscribe<MongoCommandEventStart>(metricProvider.Handle);
             EventHub.Default.Subscribe<MongoCommandEventFailure>(metricProvider.Handle);
@@ -45,10 +72,12 @@ internal static class MetricProviderRegistrar
         }
     }
 
-    public static bool TryGetProvider<TProvider>(out TProvider provider) where TProvider : class, IMetricProvider
+    public static bool TryGetProvider<TProvider>(out TProvider? provider) where TProvider : class, IMetricProvider
     {
-        provider = MetricsProviders.FirstOrDefault(p => p is TProvider) as TProvider;
-        return provider != null;
+        var success = MetricsProviders.TryGetValue(typeof(TProvider), out var providerAsObject);
+        return success ?
+            (provider = (TProvider)providerAsObject) != null :
+            (provider = null) != null;
     }
 
     private static IEnumerable<Type> EnumerateIMetricsHandlers()

@@ -1,15 +1,18 @@
 ﻿using EphemeralMongo;
 using MongoDB.Driver;
+using Prometheus;
 using PrometheusNet.MongoDb.Handlers;
+using System.Reflection;
 
 namespace PrometheusNet.MongoDb.Tests
 {
+    [Collection("NonConcurrentCollection")]
     public class QueryFilterSizeTests
     {
         [Fact]
         public async Task TestSimpleFindOperation()
         {
-            await TestMongoOperationWithFilterSize("find", Builders<TestDocument>.Filter.Eq(x => x.Id, "1"), 1);
+            await TestMongoOperationWithFilterSizeAsync(Builders<TestDocument>.Filter.Eq(x => x.Id, "1"), 1);
         }
 
         [Fact]
@@ -20,7 +23,7 @@ namespace PrometheusNet.MongoDb.Tests
                 filterBuilder.Ne(x => x.Id, "1"),
                 filterBuilder.In(x => x.Name, new List<string> { "Test5", "Test6", "Test7" })
             );
-            await TestMongoOperationWithFilterSize("find", filter, 4); // Ne + In + List with 3 elements = 4
+            await TestMongoOperationWithFilterSizeAsync(filter, 4); // Ne + In + List with 3 elements = 4
         }
 
         [Fact]
@@ -37,38 +40,27 @@ namespace PrometheusNet.MongoDb.Tests
                     filterBuilder.Eq(x => x.Name, "Test")
                 )
             );
-            await TestMongoOperationWithFilterSize("find", filter, 6); // 2 ANDs with 2 children each + 1 OR = 6
+            await TestMongoOperationWithFilterSizeAsync(filter, 4); // 2 ANDs with 2 children each = 4
         }
 
-        private async Task TestMongoOperationWithFilterSize(string operationType, FilterDefinition<TestDocument> filter, int expectedFilterSize)
+        private async Task TestMongoOperationWithFilterSizeAsync(FilterDefinition<TestDocument> filter, int expectedFilterSize)
         {
-            using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
+            if (!MetricProviderRegistrar.TryGetProvider<QueryFilterSizeMetricProvider>(out var provider) || provider == null)
             {
-                KillMongoProcessesWhenCurrentProcessExits = true,
+                throw new Exception($"Failed to fetch an instance of {nameof(QueryFilterSizeMetricProvider)}");
+            }
+
+            await MongoTestContext.RunAsync(async collection =>
+            {
+                _ = await collection.Find(filter).ToListAsync();
             });
-            var settings = MongoClientSettings
-                .FromConnectionString(ephemeralMongo.ConnectionString)
-                .InstrumentForPrometheus();
 
-            var client = new MongoClient(settings);
+            var filterSize = provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Sum;
 
-            var database = client.GetDatabase("test");
-            var collection = database.GetCollection<TestDocument>("testCollection");
+            Assert.Equal(expectedFilterSize, filterSize);
 
-            // You would initialize QueryFilterSizeMetricProvider here and register it as needed
-            // For example:
-            var queryFilterSizeProvider = new QueryFilterSizeMetricProvider();
-
-            // Then populate the collection with test data, if needed
-            // e.g., await collection.InsertManyAsync(...);
-
-            // Execute the MongoDB query
-            await collection.FindAsync(filter, new FindOptions<TestDocument> { BatchSize = 100 });
-
-            // Check the metric value
-            // This assumes you have a way to directly access the metric or expose it for testing
-            // e.g., double metricValue = queryFilterSizeProvider.QueryFilterSize.GetValue(...);
-            // Assert.Equal(expectedFilterSize, metricValue);
+            // reset the metric for the next test
+            provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Observe(-1 * filterSize);
         }
     }
 }
