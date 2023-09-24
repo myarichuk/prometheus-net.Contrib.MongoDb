@@ -45,6 +45,18 @@ Histogram metric that measures the size of MongoDB commands in bytes.
 
 - Labels: `command_type`, `target_collection`, `target_db`
 
+### Connection Creation Rate (`mongodb_client_connection_creation_rate`)
+
+Counter metric that captures the rate at which new MongoDB connections are created.
+
+- Labels: `cluster_id`, `end_point`
+
+### Connection Duration (`mongodb_client_connection_duration`)
+
+Histogram metric that measures the time it takes to close a MongoDB connection, in seconds.
+
+- Labels: `cluster_id`, `end_point`
+
 
 ## Usage Example
 
