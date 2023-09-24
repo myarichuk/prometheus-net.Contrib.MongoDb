@@ -35,11 +35,18 @@ public class CommandDurationTests
             {
                 await collection.InsertOneAsync(new TestDocument { Id = i.ToString(), Name = "Test1" });
             }
-            
-            var docs = (await collection.FindAsync(x => x.Id != "1", new FindOptions<TestDocument>
+
+            var filterBuilder = Builders<TestDocument>.Filter;
+            var filter = filterBuilder.And(
+                filterBuilder.Ne(x => x.Id, "1"),
+                filterBuilder.In(x => x.Name, new List<string> { "Test5", "Test6", "Test7" }));
+
+            var findOptions = new FindOptions<TestDocument>
             {
                 BatchSize = 100
-            })).ToList();
+            };
+
+            var docs = (await collection.FindAsync(filter, findOptions)).ToList();
         });
     }
 
@@ -60,7 +67,10 @@ public class CommandDurationTests
 
     private async Task TestMongoOperation(string operationType, Func<IMongoCollection<TestDocument>, Task> operation)
     {
-        using var ephemeralMongo = MongoRunner.Run();
+        using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
+        {
+            KillMongoProcessesWhenCurrentProcessExits = true,
+        });
 
         var settings = MongoClientSettings
             .FromConnectionString(ephemeralMongo.ConnectionString)
