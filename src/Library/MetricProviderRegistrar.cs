@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using PrometheusNet.Contrib.MongoDb.Events;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
 
@@ -26,6 +27,9 @@ internal static class MetricProviderRegistrar
             EventHub.Default.Subscribe<MongoCommandEventStart>(metricProvider.Handle);
             EventHub.Default.Subscribe<MongoCommandEventFailure>(metricProvider.Handle);
             EventHub.Default.Subscribe<MongoCommandEventSuccess>(metricProvider.Handle);
+            EventHub.Default.Subscribe<MongoConnectionOpenedEvent>(metricProvider.Handle);
+            EventHub.Default.Subscribe<MongoConnectionClosedEvent>(metricProvider.Handle);
+            EventHub.Default.Subscribe<MongoConnectionFailedEvent>(metricProvider.Handle);
         }
     }
 

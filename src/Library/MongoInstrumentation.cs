@@ -1,10 +1,9 @@
-﻿using System.Buffers.Text;
-using System.Collections.Concurrent;
-using Microsoft.Build.Tasks;
+﻿using System.Collections.Concurrent;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
+using PrometheusNet.Contrib.MongoDb.Events;
 using PrometheusNet.MongoDb.Events;
 #pragma warning disable SA1503
 #pragma warning disable SA1201
@@ -53,9 +52,46 @@ public static class MongoInstrumentation
             cb.Subscribe<CommandStartedEvent>(OnCommandStarted);
             cb.Subscribe<CommandSucceededEvent>(OnCommandSucceeded);
             cb.Subscribe<CommandFailedEvent>(OnCommandFailed);
+            cb.Subscribe<ConnectionOpenedEvent>(OnConnectionOpened);
+            cb.Subscribe<ConnectionFailedEvent>(OnConnectionFailed);
+            cb.Subscribe<ConnectionClosedEvent>(OnConnectionClosed);
         };
 
         return settings;
+    }
+
+    private static void OnConnectionClosed(ConnectionClosedEvent @event)
+    {
+        var connectionEvent = new MongoConnectionClosedEvent
+        {
+            Endpoint = @event.ServerId.EndPoint.ToString(),
+            ClusterId = @event.ServerId.ClusterId.Value,
+        };
+
+        EventHub.Default.Publish(connectionEvent);
+    }
+
+    private static void OnConnectionFailed(ConnectionFailedEvent @event)
+    {
+        var connectionEvent = new MongoConnectionFailedEvent
+        {
+            Endpoint = @event.ServerId.EndPoint.ToString(),
+            Exception = @event.Exception,
+            ClusterId = @event.ServerId.ClusterId.Value,
+        };
+
+        EventHub.Default.Publish(connectionEvent);
+    }
+
+    private static void OnConnectionOpened(ConnectionOpenedEvent @event)
+    {
+        var connectionEvent = new MongoConnectionOpenedEvent
+        {
+            Endpoint = @event.ServerId.EndPoint.ToString(),
+            ClusterId = @event.ServerId.ClusterId.Value,
+        };
+
+        EventHub.Default.Publish(connectionEvent);
     }
 
     private static void OnCommandFailed(CommandFailedEvent e)
