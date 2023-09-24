@@ -102,15 +102,6 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
     }
 
     /// <summary>
-    /// Handles the starting event of a MongoDB command.
-    /// </summary>
-    /// <param name="e">Event data.</param>
-    public void Handle(MongoCommandEventStart e)
-    {
-        // Intentionally left blank.
-    }
-
-    /// <summary>
     /// Handles the successful completion event of a MongoDB command.
     /// </summary>
     /// <param name="e">Event data.</param>

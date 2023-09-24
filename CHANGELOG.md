@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.5.0.0] - 2023-09-24
+### :sparkles: New Features
+- [`dfc51c2`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/dfc51c2f815983d5e22191fe926722116915d30f) - add connection metrics provider *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`ac9368c`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/ac9368c00bbc38dc2ab91837d9714913003d221b) - query filter size metric (for those nasty queries with 2k IN clauses) *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :white_check_mark: Tests
+- [`b53e246`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/b53e2463b30421056ac04ac4747fd6b2d42518b9) - add tests for that, of course *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`741fa6b`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/741fa6b1703451748c48c4b617acca6c2ce5302d) - add tests for query filter size metric *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`3984864`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/398486417b8cb88df40acbf8491c9b90331ebd8e) - introduce MongoTestContext that would abstract away repeated code for setup and tearing down test MongoDb instances *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :wrench: Chores
+- [`883aaea`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/883aaeaaf335c3b03bb25911c488be30fafff62b) - fix typos and add new metrics to readme *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`50e56d6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/50e56d669c074ac1910de1804e9b34c210d8c542) - remove unnecessary code (code quality) *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`62273ae`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/62273aee6ca68d449477c97bd792a40925efbcc2) - minor rename *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`81adff4`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/81adff4bd2122d9bbaca9c2f0744fa7bfc194167) - minor fixes (make sure RegisterAll() for metric provider happens only once ever) *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`240882e`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/240882e32cab2060cdcf550a1adff83117860c07) - adjust readme file for the new metric *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`ed0e68b`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/ed0e68ba50f6069eb2338bef8c53a35fccb26200) - try to enhance ConnectionMetricsTests (not sure why it fails on Linux) *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`f8c9d09`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/f8c9d0910f5753ad4178cb14f37dcf80235b908e) - add some debugging code to tests *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v0.3.1.0] - 2023-09-23
 ### :wrench: Chores
 - [`7fd9a5f`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/7fd9a5f4acd96d5b83ebce291ecadd168cad7bf8) - minor adjustment to readme file (proper nuget package Id) *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -36,3 +56,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.2.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.2.2.0...v0.2.4.0
 [v0.2.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.2.4.0...v0.2.6.0
 [v0.3.1.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.3.0.0...v0.3.1.0
+[v0.5.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.3.1.0...v0.5.0.0

@@ -63,6 +63,14 @@ Histogram metric that measures the time it takes to close a MongoDB connection, 
 
 - Labels: `cluster_id`, `end_point`
 
+### Query Filter Size (`mongodb_client_query_filter_size`)
+
+Histogram metric that tracks the size of MongoDB query filters.
+
+- Labels: `query_type`, `target_collection`, `target_db`
+
+> **Note:** This metric tries to capture the complexity of the filters being used in MongoDB queries. It recursively counts the number of clauses and items in the filters, which could be a useful metric for understanding query performance. Note that the performance in this case also depends on any indexes or their lack in the collection.
+
 
 ## Usage Example
 

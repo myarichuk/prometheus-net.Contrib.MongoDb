@@ -27,15 +27,6 @@ internal class CommandDurationProvider : IMetricProvider
         });
 
     /// <summary>
-    /// Handles the event triggered when a MongoDB command starts.
-    /// </summary>
-    /// <param name="e">Event information for the starting MongoDB command.</param>
-    public void Handle(MongoCommandEventStart e)
-    {
-        // Intentionally left blank.
-    }
-
-    /// <summary>
     /// Handles the event triggered when a MongoDB command successfully completes.
     /// </summary>
     /// <param name="e">Event information for the successfully completed MongoDB command.</param>

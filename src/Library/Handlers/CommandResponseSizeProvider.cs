@@ -21,40 +21,15 @@ internal class CommandResponseSizeProvider : IMetricProvider
         });
 
     /// <summary>
-    /// Handles the start of a MongoDB command event.
-    /// </summary>
-    /// <param name="e">The event data.</param>
-    public void Handle(MongoCommandEventStart e)
-    {
-        // Intentionally left blank
-    }
-
-    /// <summary>
     /// Handles the successful completion of a MongoDB command event.
     /// </summary>
     /// <param name="e">The event data.</param>
     public void Handle(MongoCommandEventSuccess e)
     {
-        try
-        {
-            var replySize = e.RawReply.Length;
+        var replySize = e.RawReply.Length;
 
-            CommandResponseSize
-                .WithLabels(e.OperationRawType, e.TargetCollection, e.TargetDatabase)
-                .Observe(replySize);
-        }
-        catch (OverflowException ex)
-        {
-            // Handle exception
-        }
-    }
-
-    /// <summary>
-    /// Handles the failure of a MongoDB command event.
-    /// </summary>
-    /// <param name="e">The event data.</param>
-    public void Handle(MongoCommandEventFailure e)
-    {
-        // Intentionally left blank
+        CommandResponseSize
+            .WithLabels(e.OperationRawType, e.TargetCollection, e.TargetDatabase)
+            .Observe(replySize);
     }
 }

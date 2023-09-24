@@ -14,11 +14,23 @@ internal static class MetricProviderRegistrar
         "System.", "Microsoft.", "mscorlib",
     };
 
+    private static bool _isRegistered;
+
     // needed to prevent GC from collecting metric providers
     private static readonly ConcurrentBag<IMetricProvider> MetricsProviders = new();
 
     public static void RegisterAll()
     {
+        lock (MetricsProviders)
+        {
+            if (_isRegistered)
+            {
+                return;
+            }
+
+            _isRegistered = true;
+        }
+
         foreach (var metricProviderType in EnumerateIMetricsHandlers())
         {
             var metricProvider = (IMetricProvider)Activator.CreateInstance(metricProviderType);
