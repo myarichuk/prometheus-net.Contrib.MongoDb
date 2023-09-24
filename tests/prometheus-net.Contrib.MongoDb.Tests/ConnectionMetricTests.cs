@@ -49,14 +49,14 @@ namespace PrometheusNet.MongoDb.Tests
             }
 
             var initialCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-            var initialClosureCount = provider.ConnectionClosureDuration.WithLabels("1", endpoint).Count;
+            var initialClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
 
             _output.WriteLine($"Initial creation count: {initialCreationCount}, Initial closure count: {initialClosureCount}");
 
             operation();
 
             var updatedCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-            var updatedClosureCount = provider.ConnectionClosureDuration.WithLabels("1", endpoint).Count;
+            var updatedClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
 
             _output.WriteLine($"Updated creation count: {updatedCreationCount}, Updated closure count: {updatedClosureCount}");
 

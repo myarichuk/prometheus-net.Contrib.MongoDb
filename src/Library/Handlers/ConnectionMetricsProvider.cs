@@ -27,8 +27,8 @@ internal class ConnectionMetricsProvider : IMetricProvider
     /// <summary>
     /// A histogram metric that captures the duration it takes to close MongoDB connections.
     /// </summary>
-    internal readonly Histogram ConnectionClosureDuration = Metrics.CreateHistogram(
-        "mongodb_client_connection_closure_duration",
+    internal readonly Histogram ConnectionDuration = Metrics.CreateHistogram(
+        "mongodb_client_connection_duration",
         "Duration it takes to close MongoDB connections (seconds)",
         new HistogramConfiguration
         {
@@ -58,7 +58,7 @@ internal class ConnectionMetricsProvider : IMetricProvider
         if (_connectionDuration.TryRemove(
             (@event.ClusterId, @event.Endpoint), out var stopwatch))
         {
-            ConnectionClosureDuration
+            ConnectionDuration
                     .WithLabels(@event.ClusterId.ToString(), @event.Endpoint)
                     .Observe(stopwatch?.Elapsed.TotalSeconds ?? 0);
         }
@@ -73,7 +73,7 @@ internal class ConnectionMetricsProvider : IMetricProvider
         if (_connectionDuration.TryRemove(
             (@event.ClusterId, @event.Endpoint), out var stopwatch))
         {
-            ConnectionClosureDuration
+            ConnectionDuration
                     .WithLabels(@event.ClusterId.ToString(), @event.Endpoint)
                     .Observe(stopwatch?.Elapsed.TotalSeconds ?? 0);
         }
