@@ -67,7 +67,10 @@ public class CommandDurationTests
 
     private async Task TestMongoOperation(string operationType, Func<IMongoCollection<TestDocument>, Task> operation)
     {
-        using var ephemeralMongo = MongoRunner.Run();
+        using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
+        {
+            KillMongoProcessesWhenCurrentProcessExits = true,
+        });
 
         var settings = MongoClientSettings
             .FromConnectionString(ephemeralMongo.ConnectionString)

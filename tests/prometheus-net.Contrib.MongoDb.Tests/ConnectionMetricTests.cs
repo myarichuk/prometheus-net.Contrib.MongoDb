@@ -18,7 +18,12 @@ namespace PrometheusNet.MongoDb.Tests
         [Fact]
         public async Task TestConnectionCreationAndClosure()
         {
-            using var ephemeralMongo = MongoRunner.Run();
+            using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
+            {
+                KillMongoProcessesWhenCurrentProcessExits = true,
+                StandardErrorLogger = _output.WriteLine,
+                StandardOuputLogger = _output.WriteLine,
+            });
             var endpoint = ephemeralMongo.ConnectionString.Replace("mongodb://", string.Empty);
             TestConnectionOperation(endpoint, () =>
             {

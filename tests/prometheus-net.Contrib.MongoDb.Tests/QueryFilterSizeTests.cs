@@ -42,7 +42,10 @@ namespace PrometheusNet.MongoDb.Tests
 
         private async Task TestMongoOperationWithFilterSize(string operationType, FilterDefinition<TestDocument> filter, int expectedFilterSize)
         {
-            using var ephemeralMongo = MongoRunner.Run();
+            using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
+            {
+                KillMongoProcessesWhenCurrentProcessExits = true,
+            });
             var settings = MongoClientSettings
                 .FromConnectionString(ephemeralMongo.ConnectionString)
                 .InstrumentForPrometheus();
