@@ -32,6 +32,7 @@ namespace PrometheusNet.MongoDb.Tests
                 var database = client.GetDatabase("test");
                 var collection = database.GetCollection<TestDocument>("test123");
                 _ = collection.Find(x => x.Id == "1").ToList();
+                _ = collection.Find(x => x.Id == "1").ToList();
 
                 ephemeralMongo.Dispose();
             });
