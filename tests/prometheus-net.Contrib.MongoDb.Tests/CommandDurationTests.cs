@@ -90,10 +90,3 @@ public class CommandDurationTests
             .WithLabels(commandType, status, collectionName, db)
             .Count;
 }
-
-public class TestDocument
-{
-    public string Id { get; set; }
-
-    public string Name { get; set; }
-}
