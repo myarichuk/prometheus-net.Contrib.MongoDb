@@ -4,7 +4,6 @@ using Xunit.Abstractions;
 
 namespace PrometheusNet.MongoDb.Tests;
 
-[Collection("NonConcurrentCollection")]
 public class ConnectionMetricsTests
 {
     private readonly ITestOutputHelper _output;
@@ -27,22 +26,40 @@ public class ConnectionMetricsTests
 
         var endpoint = string.Empty;
 
-        await MongoTestContext.RunAsync(async (collection, ctx) =>
+        await MongoTestContext.RunAsync(
+            async (collection, ctx) =>
+            {
+                endpoint = ctx.ConnectionString.Replace("mongodb://", string.Empty);
+
+                initialCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
+                initialClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
+
+                await collection.InsertOneAsync(new TestDocument { Id = "1", Name = "Test1" });
+
+                _ = collection.Find(x => x.Id == "2").ToList();
+            },
+            outputHelper: _output);
+
+        int retryCount = 0;
+        const int maxRetries = 5;
+
+        double updatedCreationCount = 0;
+        double updatedClosureCount = 0;
+
+        while (retryCount < maxRetries)
         {
-            endpoint = ctx.ConnectionString.Replace("mongodb://", string.Empty);
+            await Task.Delay(250);
 
-            initialCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-            initialClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
+            updatedCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
+            updatedClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
 
-            await collection.InsertOneAsync(new TestDocument { Id = "1", Name = "Test1" });
+            if (updatedCreationCount > initialCreationCount && updatedClosureCount > initialClosureCount)
+            {
+                break;
+            }
 
-            _ = collection.Find(x => x.Id == "2").ToList();
-        });
-
-        await Task.Delay(500); // allow MongoDb driver to shut down stuff properly and fire events
-
-        var updatedCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-        var updatedClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
+            retryCount++;
+        }
 
         Assert.True(updatedCreationCount > initialCreationCount);
         Assert.True(updatedClosureCount > initialClosureCount);
