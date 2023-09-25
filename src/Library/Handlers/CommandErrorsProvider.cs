@@ -25,24 +25,6 @@ internal class CommandErrorsProvider : IMetricProvider
         });
 
     /// <summary>
-    /// Handles the event triggered when a MongoDB command starts.
-    /// </summary>
-    /// <param name="e">Event information.</param>
-    public void Handle(MongoCommandEventStart e)
-    {
-        // Intentionally left blank.
-    }
-
-    /// <summary>
-    /// Handles the event triggered when a MongoDB command succeeds.
-    /// </summary>
-    /// <param name="e">Event information.</param>
-    public void Handle(MongoCommandEventSuccess e)
-    {
-        // Intentionally left blank.
-    }
-
-    /// <summary>
     /// Handles the event triggered when a MongoDB command fails.
     /// </summary>
     /// <param name="e">Event information.</param>

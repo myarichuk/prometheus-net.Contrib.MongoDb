@@ -1,75 +1,68 @@
-﻿using EphemeralMongo;
-using MongoDB.Driver;
+﻿using MongoDB.Driver;
 using PrometheusNet.Contrib.MongoDb.Handlers;
 using Xunit.Abstractions;
 
-namespace PrometheusNet.MongoDb.Tests
-{
-    public class ConnectionMetricsTests
-    {
-        private readonly ITestOutputHelper _output;
+namespace PrometheusNet.MongoDb.Tests;
 
-        public ConnectionMetricsTests(ITestOutputHelper output)
+public class ConnectionMetricsTests
+{
+    private readonly ITestOutputHelper _output;
+
+    public ConnectionMetricsTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    [Fact]
+    public async Task TestConnectionCreationAndClosure()
+    {
+        if (!MetricProviderRegistrar.TryGetProvider<ConnectionMetricsProvider>(out var provider) || provider == null)
         {
-            _output = output;
+            throw new Exception($"Failed to fetch an instance of {nameof(ConnectionMetricsProvider)}");
         }
 
-        [Fact(Skip = "For now disable this, until I refactor the test infrastructure for mongo")]
-        public async Task TestConnectionCreationAndClosure()
-        {
-            using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
-            {
-                KillMongoProcessesWhenCurrentProcessExits = true,
-                StandardErrorLogger = _output.WriteLine,
-                StandardOuputLogger = _output.WriteLine,
-            });
-            var endpoint = ephemeralMongo.ConnectionString.Replace("mongodb://", string.Empty);
-            TestConnectionOperation(endpoint, () =>
-            {
-                MongoClient client;
-                var settings =
-                    MongoClientSettings
-                        .FromConnectionString(ephemeralMongo.ConnectionString)
-                        .InstrumentForPrometheus();
+        double initialCreationCount = 0;
+        double initialClosureCount = 0;
 
-                client = new MongoClient(settings);
-                var database = client.GetDatabase("test");
-                var collection = database.GetCollection<TestDocument>("test123");
-                collection.InsertOne(new TestDocument { Id = "1", Name = "Test1" });
-                collection.InsertOne(new TestDocument { Id = "2", Name = "Test2" });
-                collection.InsertOne(new TestDocument { Id = "3", Name = "Test3" });
+        var endpoint = string.Empty;
+
+        await MongoTestContext.RunAsync(
+            async (collection, ctx) =>
+            {
+                endpoint = ctx.ConnectionString.Replace("mongodb://", string.Empty);
+
+                initialCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
+                initialClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
+
+                await collection.InsertOneAsync(new TestDocument { Id = "1", Name = "Test1" });
 
                 _ = collection.Find(x => x.Id == "2").ToList();
+            },
+            outputHelper: _output);
 
-                ephemeralMongo.Dispose();
-            });
-        }
+        int retryCount = 0;
+        const int maxRetries = 5;
 
-        private void TestConnectionOperation(string endpoint, Action operation)
+        double updatedCreationCount = 0;
+        double updatedClosureCount = 0;
+
+        while (retryCount < maxRetries)
         {
-            _output.WriteLine($"Starting test with endpoint: {endpoint}");
+            await Task.Delay(250);
 
-            MetricProviderRegistrar.RegisterAll();
+            updatedCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
+            updatedClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
 
-            if (!MetricProviderRegistrar.TryGetProvider<ConnectionMetricsProvider>(out var provider) || provider == null)
+            if (updatedCreationCount > initialCreationCount && updatedClosureCount > initialClosureCount)
             {
-                throw new Exception($"Failed to fetch an instance of {nameof(ConnectionMetricsProvider)}");
+                break;
             }
 
-            var initialCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-            var initialClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
-
-            _output.WriteLine($"Initial creation count: {initialCreationCount}, Initial closure count: {initialClosureCount}");
-
-            operation();
-
-            var updatedCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-            var updatedClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
-
-            _output.WriteLine($"Updated creation count: {updatedCreationCount}, Updated closure count: {updatedClosureCount}");
-
-            Assert.True(updatedCreationCount > initialCreationCount);
-            Assert.True(updatedClosureCount > initialClosureCount);
+            retryCount++;
         }
+
+        Assert.True(updatedCreationCount > initialCreationCount);
+        Assert.True(updatedClosureCount > initialClosureCount);
     }
+
 }

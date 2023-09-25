@@ -1,7 +1,5 @@
-using EphemeralMongo;
 using MongoDB.Driver;
 using Prometheus;
-using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.MongoDb.Tests;
@@ -67,44 +65,28 @@ public class CommandDurationTests
 
     private async Task TestMongoOperation(string operationType, Func<IMongoCollection<TestDocument>, Task> operation)
     {
-        using var ephemeralMongo = MongoRunner.Run(new MongoRunnerOptions
-        {
-            KillMongoProcessesWhenCurrentProcessExits = true,
-        });
-
-        var settings = MongoClientSettings
-            .FromConnectionString(ephemeralMongo.ConnectionString)
-            .InstrumentForPrometheus();
-
-        var client = new MongoClient(settings);
-
-        var database = client.GetDatabase("test");
-        var collection = database.GetCollection<TestDocument>("testCollection");
-
         if (!MetricProviderRegistrar.TryGetProvider<CommandDurationProvider>(out var provider))
         {
             throw new Exception($"Failed to fetch an instance of {nameof(CommandDurationProvider)}");
         }
 
-        // perform the operation and assert that the Prometheus metric is updated
-        var initialCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
-        await operation(collection);
-        var updatedCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
+        double initialCount = 0;
+        double updatedCount = 0;
+
+        await MongoTestContext.RunAsync(async collection =>
+        {
+            initialCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
+
+            await operation(collection);
+
+            updatedCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
+        });
 
         Assert.True(updatedCount > initialCount); // account for parallelism, so it won't be necessarily +1 difference
     }
 
-    private double GetSampleValue(Histogram metric, string commandType, string status, string collectionName, string db)
-    {
-        return metric
+    private double GetSampleValue(Histogram metric, string commandType, string status, string collectionName, string db) =>
+        metric
             .WithLabels(commandType, status, collectionName, db)
             .Count;
-    }
-}
-
-public class TestDocument
-{
-    public string Id { get; set; }
-
-    public string Name { get; set; }
 }
