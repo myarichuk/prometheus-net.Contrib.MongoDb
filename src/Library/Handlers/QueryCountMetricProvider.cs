@@ -6,7 +6,7 @@ namespace PrometheusNet.MongoDb.Handlers;
 /// <summary>
 /// Provides functionality for tracking and recording MongoDB query counts.
 /// </summary>
-internal class QueryCountProvider : IMetricProvider
+internal class QueryCountMetricProvider : IMetricProvider
 {
     /// <summary>
     /// A counter metric that captures the count of MongoDB queries.
@@ -29,7 +29,7 @@ internal class QueryCountProvider : IMetricProvider
     /// <remarks>
     /// This will increment the counter for "find" and "aggregate" MongoDB queries with appropriate labels.
     /// </remarks>
-    public void Handle(MongoCommandEvent e)
+    public void Handle(MongoCommandEventStart e)
     {
         if (e.OperationType is MongoOperationType.Find or MongoOperationType.Aggregate)
         {

@@ -10,6 +10,16 @@ namespace PrometheusNet.MongoDb.Tests;
     internal static class MongoTestContext
     {
         /// <summary>
+        /// Database name used in the test context
+        /// </summary>
+        public const string Database = "test";
+
+        /// <summary>
+        /// Collection name used in the test context
+        /// </summary>
+        public const string Collection = "testCollection";
+
+        /// <summary>
         /// An empty logger that does nothing.
         /// </summary>
         private static readonly Logger _emptyLogger = _ => { };
@@ -35,8 +45,8 @@ namespace PrometheusNet.MongoDb.Tests;
 
             var client = new MongoClient(settings);
 
-            var database = client.GetDatabase("test");
-            var collection = database.GetCollection<TestDocument>("testCollection");
+            var database = client.GetDatabase(Database);
+            var collection = database.GetCollection<TestDocument>(Collection);
 
             await operation(collection);
         }
