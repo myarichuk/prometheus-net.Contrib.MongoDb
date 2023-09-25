@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.5.5.0] - 2023-09-25
+### :bug: Bug Fixes
+- [`2410a68`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/2410a68b7454177411e0ffa68486279382fdcc1d) - try to take care of race condition in a test *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :white_check_mark: Tests
+- [`c85c611`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/c85c611d6b62873a609c2801daf2363999758221) - "migrate" tests to use MongoTestContext - a more structured way to write tests *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :wrench: Chores
+- [`6f6dffe`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/6f6dffee6e3c29da77688b9e956456f9bd3cb45b) - adjust readme file (add a "motivation" section) *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`1275b8d`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/1275b8d217622a062b1d76a26d4764c08dd0d3ea) - **deps**: bump Microsoft.NET.Test.Sdk from 17.6.0 to 17.7.2 *(commit by [@dependabot[bot]](https://github.com/apps/dependabot))*
+- [`999ede2`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/999ede20cf32b5cc2b9d0996a09a63cad4857594) - **deps**: bump coverlet.collector from 3.2.0 to 6.0.0 *(commit by [@dependabot[bot]](https://github.com/apps/dependabot))*
+- [`dd66b48`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/dd66b48f5452bb04352c2553e3add23d37a798b9) - **deps**: bump xunit.runner.visualstudio from 2.4.5 to 2.5.1 *(commit by [@dependabot[bot]](https://github.com/apps/dependabot))*
+- [`3beb686`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/3beb686ce3f2edb3d11189f73a308e3f97ed9945) - fix tests so they work properly *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`baf2a63`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/baf2a639d16a965ef9eb105e9d585527eeed04ca) - **tests**: remove unnecessary code *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`9d6d392`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/9d6d3925b94d4210573771e69bdd37c16601129e) - minor code change *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v0.5.0.0] - 2023-09-24
 ### :sparkles: New Features
 - [`dfc51c2`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/dfc51c2f815983d5e22191fe926722116915d30f) - add connection metrics provider *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -57,3 +74,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.2.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.2.4.0...v0.2.6.0
 [v0.3.1.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.3.0.0...v0.3.1.0
 [v0.5.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.3.1.0...v0.5.0.0
+[v0.5.5.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.5.0.0...v0.5.5.0
