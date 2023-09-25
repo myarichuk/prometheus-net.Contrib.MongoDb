@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.6.0.0] - 2023-09-25
+### :sparkles: New Features
+- [`ea8fb5c`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/ea8fb5cf0635373ab8ac2d2ad9d8e4cb1cecc033) - add query count provider (to better understand activity spikes, SELECT N+1 and other fun issues) *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :white_check_mark: Tests
+- [`71acf31`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/71acf31905943b4020bc507fea29af3f355ddf2b) - add tests for query count metric *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :wrench: Chores
+- [`bc87465`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bc87465bfec4619d90b1a3aedb923a3c9add4e76) - adjust readme to add new Query Count metric *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v0.5.5.0] - 2023-09-25
 ### :bug: Bug Fixes
 - [`2410a68`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/2410a68b7454177411e0ffa68486279382fdcc1d) - try to take care of race condition in a test *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -75,3 +86,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.3.1.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.3.0.0...v0.3.1.0
 [v0.5.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.3.1.0...v0.5.0.0
 [v0.5.5.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.5.0.0...v0.5.5.0
+[v0.6.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.5.5.0...v0.6.0.0
