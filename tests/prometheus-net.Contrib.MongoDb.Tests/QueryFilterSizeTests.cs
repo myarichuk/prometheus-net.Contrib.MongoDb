@@ -50,17 +50,17 @@ namespace PrometheusNet.MongoDb.Tests
                 throw new Exception($"Failed to fetch an instance of {nameof(QueryFilterSizeMetricProvider)}");
             }
 
+            var filterSizeBefore = provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Sum;
+
             await MongoTestContext.RunAsync(async collection =>
             {
                 _ = await collection.Find(filter).ToListAsync();
             });
 
-            var filterSize = provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Sum;
+            var filterSizeAfter = provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Sum;
 
-            Assert.Equal(expectedFilterSize, filterSize);
-
-            // reset the metric for the next test
-            provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Observe(-1 * filterSize);
+            // note: take into account other tests with 'find' might change this metric
+            Assert.Equal(expectedFilterSize, filterSizeAfter - filterSizeBefore);
         }
     }
 }

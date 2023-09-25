@@ -4,6 +4,7 @@ using Xunit.Abstractions;
 
 namespace PrometheusNet.MongoDb.Tests;
 
+[Collection("NonConcurrentCollection")]
 public class ConnectionMetricsTests
 {
     private readonly ITestOutputHelper _output;
@@ -37,6 +38,8 @@ public class ConnectionMetricsTests
 
             _ = collection.Find(x => x.Id == "2").ToList();
         });
+
+        await Task.Delay(500); // allow MongoDb driver to shut down stuff properly and fire events
 
         var updatedCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
         var updatedClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
