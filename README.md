@@ -69,6 +69,13 @@ Histogram metric that tracks the size of MongoDB query filters.
 
 - Labels: `query_type`, `target_collection`, `target_db`
 
+### Query Count (`mongodb_client_query_count`)
+
+Counter metric that measures the number of "find" and "aggregate" MongoDB queries.
+
+- Labels: `query_type`, `target_collection`, `target_db`
+
+
 > **Note:** This metric tries to capture the complexity of the filters being used in MongoDB queries. It recursively counts the number of clauses and items in the filters, which could be a useful metric for understanding query performance. Note that the performance in this case also depends on any indexes or their lack in the collection.
 
 
