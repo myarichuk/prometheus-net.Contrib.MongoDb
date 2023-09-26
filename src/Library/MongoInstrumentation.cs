@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
@@ -105,6 +106,12 @@ public static class MongoInstrumentation
 
         if (Commands.Remove(e.RequestId, out var commandInfo))
         {
+            var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
+            if (targetCollection == string.Empty)
+            {
+                return;
+            }
+
             var commandEvent = new MongoCommandEventFailure
             {
                 RequestId = e.RequestId,
@@ -115,7 +122,7 @@ public static class MongoInstrumentation
                 Failure = e.Failure,
                 OperationType = GetOperationType(e.CommandName),
                 TargetDatabase = GetDatabase(commandInfo.Command),
-                TargetCollection = GetCollection(e.CommandName, commandInfo.Command),
+                TargetCollection = targetCollection,
             };
             EventHub.Default.Publish(commandEvent);
         }
@@ -130,6 +137,12 @@ public static class MongoInstrumentation
 
         if (Commands.Remove(e.RequestId, out var commandInfo))
         {
+            var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
+            if (targetCollection == string.Empty)
+            {
+                return;
+            }
+
             var commandEvent = new MongoCommandEventSuccess
             {
                 RequestId = e.RequestId,
@@ -139,7 +152,7 @@ public static class MongoInstrumentation
                 Duration = e.Duration,
                 OperationType = GetOperationType(e.CommandName),
                 TargetDatabase = GetDatabase(commandInfo.Command),
-                TargetCollection = GetCollection(e.CommandName, commandInfo.Command),
+                TargetCollection = targetCollection,
                 RawReply = e.Reply.ToBson(),
                 Reply = e.Reply.ToDictionary(),
                 CursorId = long.TryParse(commandInfo.Command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
@@ -157,12 +170,18 @@ public static class MongoInstrumentation
 
         var command = e.Command.ToDictionary();
         var rawCommandSizeInBytes = e.Command.ToBson()?.Length ?? 0;
-        Commands.TryAdd(e.RequestId, 
+        Commands.TryAdd(e.RequestId,
             new CommandInfo
             {
                 Command = command,
                 RawSizeInBytes = rawCommandSizeInBytes
             });
+
+        var targetCollection = GetCollection(e.CommandName, command);
+        if (targetCollection == string.Empty)
+        {
+            return;
+        }
 
         var commandEvent = new MongoCommandEventStart
         {
@@ -173,7 +192,7 @@ public static class MongoInstrumentation
             Duration = null, // no duration yet
             OperationType = GetOperationType(e.CommandName),
             TargetDatabase = GetDatabase(command),
-            TargetCollection = GetCollection(e.CommandName, command),
+            TargetCollection = targetCollection,
             CursorId = long.TryParse(command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
         };
 
@@ -230,8 +249,7 @@ public static class MongoInstrumentation
 
         if (!command.TryGetValue(commandName, out var collectionName))
         {
-            throw new InvalidOperationException(
-                "Failed to fetch collection name from command object. This is not supposed to happen and is likely a bug which should be reported.");
+            return string.Empty;
         }
 
         return collectionName?.ToString() ?? string.Empty;
