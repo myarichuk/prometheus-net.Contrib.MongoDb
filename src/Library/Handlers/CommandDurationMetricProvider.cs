@@ -42,6 +42,10 @@ internal class CommandDurationMetricProvider : IMetricProvider
             LabelNames = new[] { "command_type", "status", "target_collection", "target_db" },
         });
 
+    public void Handle(MongoCommandEventStart e)
+    {
+        
+    }
 
     /// <summary>
     /// Handles the event triggered when a MongoDB command successfully completes.

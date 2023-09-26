@@ -35,9 +35,7 @@ public class CommandDurationTests
             }
 
             var filterBuilder = Builders<TestDocument>.Filter;
-            var filter = filterBuilder.And(
-                filterBuilder.Ne(x => x.Id, "1"),
-                filterBuilder.In(x => x.Name, new List<string> { "Test5", "Test6", "Test7" }));
+            var filter = filterBuilder.Ne(x => x.Id, "1");
 
             var findOptions = new FindOptions<TestDocument>
             {

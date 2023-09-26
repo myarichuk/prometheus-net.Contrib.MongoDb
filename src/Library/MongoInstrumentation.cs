@@ -115,6 +115,7 @@ public static class MongoInstrumentation
             var commandEvent = new MongoCommandEventFailure
             {
                 RequestId = e.RequestId,
+                OperationId = e.OperationId ?? 0,
                 OperationRawType = e.CommandName,
                 Command = commandInfo.Command,
                 RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
@@ -146,6 +147,7 @@ public static class MongoInstrumentation
             var commandEvent = new MongoCommandEventSuccess
             {
                 RequestId = e.RequestId,
+                OperationId = e.OperationId ?? 0,
                 OperationRawType = e.CommandName,
                 Command = commandInfo.Command,
                 RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
@@ -186,6 +188,7 @@ public static class MongoInstrumentation
         var commandEvent = new MongoCommandEventStart
         {
             RequestId = e.RequestId,
+            OperationId = e.OperationId ?? 0,
             OperationRawType = e.CommandName,
             Command = command,
             RawRequestSizeInBytes = rawCommandSizeInBytes,
