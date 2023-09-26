@@ -39,14 +39,17 @@ public static class MongoInstrumentation
     /// Instruments the given MongoClientSettings for Prometheus metrics.
     /// </summary>
     /// <param name="settings">The MongoClientSettings to instrument.</param>
+    /// <param name="configurator">A delegate to do additional writing for events if needed</param>
     /// <returns>The instrumented MongoClientSettings.</returns>
     /// <exception cref="Exception"><see cref="ClusterBuilder"/> delegate in ClusterConfigurator throws an exception</exception>
-    public static MongoClientSettings InstrumentForPrometheus(this MongoClientSettings settings)
+    public static MongoClientSettings InstrumentForPrometheus(this MongoClientSettings settings, Action<ClusterBuilder>? configurator = null)
     {
         var existingConfigurator = settings.ClusterConfigurator;
         settings.ClusterConfigurator = cb =>
         {
             existingConfigurator?.Invoke(cb);
+
+            configurator?.Invoke(cb);
 
             cb.Subscribe<CommandStartedEvent>(OnCommandStarted);
             cb.Subscribe<CommandSucceededEvent>(OnCommandSucceeded);
