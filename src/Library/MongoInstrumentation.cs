@@ -98,6 +98,11 @@ public static class MongoInstrumentation
 
     private static void OnCommandFailed(CommandFailedEvent e)
     {
+        if (e.CommandName == "isMaster")
+        {
+            return;
+        }
+
         if (Commands.Remove(e.RequestId, out var commandInfo))
         {
             var commandEvent = new MongoCommandEventFailure
@@ -118,6 +123,11 @@ public static class MongoInstrumentation
 
     private static void OnCommandSucceeded(CommandSucceededEvent e)
     {
+        if (e.CommandName == "isMaster")
+        {
+            return;
+        }
+
         if (Commands.Remove(e.RequestId, out var commandInfo))
         {
             var commandEvent = new MongoCommandEventSuccess
@@ -140,6 +150,11 @@ public static class MongoInstrumentation
 
     private static void OnCommandStarted(CommandStartedEvent e)
     {
+        if (e.CommandName == "isMaster")
+        {
+            return;
+        }
+
         var command = e.Command.ToDictionary();
         var rawCommandSizeInBytes = e.Command.ToBson()?.Length ?? 0;
         Commands.TryAdd(e.RequestId, 
@@ -210,10 +225,16 @@ public static class MongoInstrumentation
     {
         if (command.TryGetValue("collection", out var collectionAsObject))
         {
-            return collectionAsObject.ToString();
+            return collectionAsObject?.ToString() ?? string.Empty;
         }
 
-        return command[commandName].ToString();
+        if (!command.TryGetValue(commandName, out var collectionName))
+        {
+            throw new InvalidOperationException(
+                "Failed to fetch collection name from command object. This is not supposed to happen and is likely a bug which should be reported.");
+        }
+
+        return collectionName?.ToString() ?? string.Empty;
     }
 
     private static string GetDatabase(Dictionary<string, object> command) =>
