@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.7.2.0] - 2023-09-26
+### :wrench: Chores
+- [`7b3fb36`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/7b3fb36e3ea5bfd73c284a00f7853ee07f5481f4) - add performance considerations to readme *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v0.7.0.0] - 2023-09-26
 ### :sparkles: New Features
 - [`bb439da`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bb439daa00b23091761b870d7a90172f0208b0bd) - add command request size metric + do some refactoring *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -93,3 +98,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.5.5.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.5.0.0...v0.5.5.0
 [v0.6.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.5.5.0...v0.6.0.0
 [v0.7.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.6.0.0...v0.7.0.0
+[v0.7.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.0.0...v0.7.2.0
