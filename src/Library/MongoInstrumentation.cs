@@ -5,6 +5,7 @@ using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
 using PrometheusNet.Contrib.MongoDb.Events;
 using PrometheusNet.MongoDb.Events;
+// ReSharper disable TooManyChainedReferences
 #pragma warning disable SA1503
 #pragma warning disable SA1201
 
@@ -21,19 +22,17 @@ namespace PrometheusNet.MongoDb;
 /// </summary>
 public static class MongoInstrumentation
 {
-    private static readonly ConcurrentDictionary<int, Dictionary<string, object>> Commands = new();
+    private class CommandInfo
+    {
+        public int RawSizeInBytes { get; set; }
+        public Dictionary<string, object> Command { get; set; }
+    }
+
+    private static readonly ConcurrentDictionary<int, CommandInfo> Commands = new();
 
     static MongoInstrumentation()
     {
-        try
-        {
-            MetricProviderRegistrar.RegisterAll();
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            throw;
-        }
+        MetricProviderRegistrar.RegisterAll();
     }
 
     /// <summary>
@@ -96,18 +95,19 @@ public static class MongoInstrumentation
 
     private static void OnCommandFailed(CommandFailedEvent e)
     {
-        if (Commands.Remove(e.RequestId, out var command))
+        if (Commands.Remove(e.RequestId, out var commandInfo))
         {
             var commandEvent = new MongoCommandEventFailure
             {
                 RequestId = e.RequestId,
                 OperationRawType = e.CommandName,
-                Command = command,
+                Command = commandInfo.Command,
+                RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
                 Duration = e.Duration,
                 Failure = e.Failure,
                 OperationType = GetOperationType(e.CommandName),
-                TargetDatabase = GetDatabase(command),
-                TargetCollection = GetCollection(e.CommandName, command),
+                TargetDatabase = GetDatabase(commandInfo.Command),
+                TargetCollection = GetCollection(e.CommandName, commandInfo.Command),
             };
             EventHub.Default.Publish(commandEvent);
         }
@@ -115,20 +115,21 @@ public static class MongoInstrumentation
 
     private static void OnCommandSucceeded(CommandSucceededEvent e)
     {
-        if (Commands.Remove(e.RequestId, out var command))
+        if (Commands.Remove(e.RequestId, out var commandInfo))
         {
             var commandEvent = new MongoCommandEventSuccess
             {
                 RequestId = e.RequestId,
                 OperationRawType = e.CommandName,
-                Command = command,
+                Command = commandInfo.Command,
+                RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
                 Duration = e.Duration,
                 OperationType = GetOperationType(e.CommandName),
-                TargetDatabase = GetDatabase(command),
-                TargetCollection = GetCollection(e.CommandName, command),
+                TargetDatabase = GetDatabase(commandInfo.Command),
+                TargetCollection = GetCollection(e.CommandName, commandInfo.Command),
                 RawReply = e.Reply.ToBson(),
                 Reply = e.Reply.ToDictionary(),
-                CursorId = long.TryParse(command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
+                CursorId = long.TryParse(commandInfo.Command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
             };
             EventHub.Default.Publish(commandEvent);
         }
@@ -137,13 +138,20 @@ public static class MongoInstrumentation
     private static void OnCommandStarted(CommandStartedEvent e)
     {
         var command = e.Command.ToDictionary();
-        Commands.TryAdd(e.RequestId, command);
+        var rawCommandSizeInBytes = e.Command.ToBson()?.Length ?? 0;
+        Commands.TryAdd(e.RequestId, 
+            new CommandInfo
+            {
+                Command = command,
+                RawSizeInBytes = rawCommandSizeInBytes
+            });
 
         var commandEvent = new MongoCommandEventStart
         {
             RequestId = e.RequestId,
             OperationRawType = e.CommandName,
             Command = command,
+            RawRequestSizeInBytes = rawCommandSizeInBytes,
             Duration = null, // no duration yet
             OperationType = GetOperationType(e.CommandName),
             TargetDatabase = GetDatabase(command),

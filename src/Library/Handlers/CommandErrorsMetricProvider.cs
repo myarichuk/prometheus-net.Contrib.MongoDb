@@ -8,7 +8,7 @@ namespace PrometheusNet.MongoDb.Handlers;
 /// <summary>
 /// Provides functionality to create and update Prometheus metrics related to MongoDB commands.
 /// </summary>
-internal class CommandErrorsProvider : IMetricProvider
+internal class CommandErrorsMetricProvider : IMetricProvider
 {
     /// <summary>
     /// A summary metric that captures the total number of command errors in MongoDB operations.
