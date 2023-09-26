@@ -21,6 +21,12 @@ Histogram metric that measures the duration of MongoDB commands in seconds.
 
 - Labels: `command_type`, `status`, `target_collection`, `target_db`
 
+### Command Duration (Summary) (`mongodb_client_command_duration_summary`)
+
+Summary metric that measures the duration of MongoDB commands in seconds.
+
+- Labels: `command_type`, `status`, `target_collection`, `target_db`
+
 ### Open Cursors Count (`mongodb_client_open_cursors_count`)
 
 Gauge metric that tracks the number of open cursors.
@@ -45,13 +51,13 @@ Counter metric that counts the total number of MongoDB command errors.
 
 - Labels: `command_type`, `error_type`, `target_collection`, `target_db`
 
-### Command Request Size (`mongodb_command_request_size`)
+### Command Request Size (`mongodb_client_command_request_size`)
 
 Histogram metric that measures the size of MongoDB command request in bytes.
 
 - Labels: `command_type`, `target_collection`, `target_db`
 
-### Command Response Size (`mongodb_command_response_size`)
+### Command Response Size (`mongodb_client_command_response_size`)
 
 Histogram metric that measures the size of MongoDB command response in bytes.
 

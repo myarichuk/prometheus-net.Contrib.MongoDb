@@ -75,11 +75,11 @@ public class CommandDurationTests
 
         await MongoTestContext.RunAsync(async collection =>
         {
-            initialCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
+            initialCount = GetSampleValue(provider.CommandDurationHistogram, operationType, "success", "testCollection", "test");
 
             await operation(collection);
 
-            updatedCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
+            updatedCount = GetSampleValue(provider.CommandDurationHistogram, operationType, "success", "testCollection", "test");
         });
 
         Assert.True(updatedCount > initialCount); // account for parallelism, so it won't be necessarily +1 difference

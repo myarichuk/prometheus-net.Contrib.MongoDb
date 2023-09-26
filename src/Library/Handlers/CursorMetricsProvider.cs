@@ -14,7 +14,7 @@ namespace PrometheusNet.MongoDb.Handlers;
 /// </summary>
 internal class CursorMetricsProvider : IMetricProvider, IDisposable
 {
-    private const int CursorTimeoutMilliseconds = 1000 * 60 * 2; // 2 min
+    private const int CursorTimeoutMilliseconds = 1000 * 60 * 10; // 10 min
 
     private readonly ConcurrentDictionary<long, (int DocumentCount, DateTime LastUpdated, string Collection, string Database)> _cursorDocumentCount = new();
 
