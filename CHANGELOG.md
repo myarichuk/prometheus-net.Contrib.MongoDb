@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.7.8.0] - 2023-09-26
+### :bug: Bug Fixes
+- [`bb36fa6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bb36fa6e8fec6f6f50eb27a51f7be22eecc062db) - gracefully handle isMaster command
+
+
 ## [v0.7.6.0] - 2023-09-26
 ### :bug: Bug Fixes
 - [`8cdebc0`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/8cdebc0a38228ead15218ad894d5d4e72cea461c) - make sure 'isMaster' command won't cause unhandled exceptions in the host process
@@ -111,3 +116,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.7.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.0.0...v0.7.2.0
 [v0.7.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.2.0...v0.7.4.0
 [v0.7.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.4.0...v0.7.6.0
+[v0.7.8.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.6.0...v0.7.8.0
