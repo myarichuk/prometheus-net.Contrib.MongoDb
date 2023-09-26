@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.0.0] - 2023-09-26
+### :sparkles: New Features
+- [`fb6b61d`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/fb6b61d92f300fae250c090d67b3dfe29a662b18) - add mongodb_client_command_duration_summary and adjust buckets of the command duration
+
+### :bug: Bug Fixes
+- [`ae397de`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/ae397de29140a51153fcdb4f122e856ebb8931c8) - open cursor duration and batch size metrics (properly detect cursor Id - *facepalm*)
+
+### :wrench: Chores
+- [`f70b02e`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/f70b02ef912d6c72a0ecfa368202f9f3ceac2e30) - minor refactoring + fix metric names in readme
+
+
 ## [v0.7.8.0] - 2023-09-26
 ### :bug: Bug Fixes
 - [`bb36fa6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bb36fa6e8fec6f6f50eb27a51f7be22eecc062db) - gracefully handle isMaster command
@@ -117,3 +128,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.7.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.2.0...v0.7.4.0
 [v0.7.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.4.0...v0.7.6.0
 [v0.7.8.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.6.0...v0.7.8.0
+[v0.8.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.10.0...v0.8.0.0
