@@ -65,9 +65,9 @@ public class CommandDurationTests
 
     private async Task TestMongoOperation(string operationType, Func<IMongoCollection<TestDocument>, Task> operation)
     {
-        if (!MetricProviderRegistrar.TryGetProvider<CommandDurationProvider>(out var provider))
+        if (!MetricProviderRegistrar.TryGetProvider<CommandDurationMetricProvider>(out var provider))
         {
-            throw new Exception($"Failed to fetch an instance of {nameof(CommandDurationProvider)}");
+            throw new Exception($"Failed to fetch an instance of {nameof(CommandDurationMetricProvider)}");
         }
 
         double initialCount = 0;

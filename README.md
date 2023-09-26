@@ -45,9 +45,15 @@ Counter metric that counts the total number of MongoDB command errors.
 
 - Labels: `command_type`, `error_type`, `target_collection`, `target_db`
 
-### Command Size (`mongodb_command_response_size`)
+### Command Request Size (`mongodb_command_request_size`)
 
-Histogram metric that measures the size of MongoDB commands in bytes.
+Histogram metric that measures the size of MongoDB command request in bytes.
+
+- Labels: `command_type`, `target_collection`, `target_db`
+
+### Command Response Size (`mongodb_command_response_size`)
+
+Histogram metric that measures the size of MongoDB command response in bytes.
 
 - Labels: `command_type`, `target_collection`, `target_db`
 
@@ -69,14 +75,13 @@ Histogram metric that tracks the size of MongoDB query filters.
 
 - Labels: `query_type`, `target_collection`, `target_db`
 
+> **Note:** This metric tries to capture the complexity of the filters being used in MongoDB queries. It recursively counts the number of clauses and items in the filters, which could be a useful metric for understanding query performance. Note that the performance in this case also depends on any indexes or their lack in the collection.
+
 ### Query Count (`mongodb_client_query_count`)
 
 Counter metric that measures the number of "find" and "aggregate" MongoDB queries.
 
 - Labels: `query_type`, `target_collection`, `target_db`
-
-
-> **Note:** This metric tries to capture the complexity of the filters being used in MongoDB queries. It recursively counts the number of clauses and items in the filters, which could be a useful metric for understanding query performance. Note that the performance in this case also depends on any indexes or their lack in the collection.
 
 
 ## Usage Example

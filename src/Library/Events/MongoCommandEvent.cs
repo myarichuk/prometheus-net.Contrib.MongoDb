@@ -2,6 +2,8 @@
 
 public abstract class MongoCommandEvent
 {
+    public int RawRequestSizeInBytes { get; set; }
+
     public string OperationRawType { get; set; }
 
     public int RequestId { get; set; }
