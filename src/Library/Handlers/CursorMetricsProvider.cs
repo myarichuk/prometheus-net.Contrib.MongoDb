@@ -124,9 +124,9 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
             }
 
             // final batch done -> cursor will close
-            if (IsFinalBatch(e.Reply) && long.TryParse(e.TargetCollection, out var fetchedCursorId))
+            if (IsFinalBatch(e.Reply))
             {
-                IncrementCursorDocumentCountMetrics(fetchedCursorId, e.TargetCollection, e.TargetDatabase);
+                IncrementCursorDocumentCountMetrics(e.OperationId, e.TargetCollection, e.TargetDatabase);
                 DecrementOpenCursors(e);
 
                 if (_cursorDurationTimers.TryRemove(e.OperationId, out var timer))
@@ -154,9 +154,9 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
                 .Dec();
 
             // if there is a failure, record what we have so far
-            IncrementCursorDocumentCountMetrics(e.CursorId ?? 0, e.TargetCollection, e.TargetDatabase);
+            IncrementCursorDocumentCountMetrics(e.OperationId, e.TargetCollection, e.TargetDatabase);
 
-            if (_cursorDurationTimers.TryRemove(e.CursorId ?? 0, out var timer))
+            if (_cursorDurationTimers.TryRemove(e.OperationId, out var timer))
             {
                 timer.Stop();
                 OpenCursorDuration
