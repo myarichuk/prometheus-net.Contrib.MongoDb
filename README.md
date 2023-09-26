@@ -11,7 +11,7 @@ Why create another metrics library for MongoDB when there's already [mongodb_exp
 It is true that `mongodb_exporter` is a great tool for monitoring MongoDB, but it is a server-side tool that requires a separate process to run, possibly docker or other mode of deployment. 
 On top of that, it "actively" gathers information by polling MongoDB while this exporter will do it "passively" by instrumenting the MongoDB C# Driver, without the need to run a separate process.
 
-**Note:** This library is still in development and more metrics will be added
+**Note:** This library is still in development and more metrics will be added. A grafana dashboard definition is also in-progress :)
 
 ## Metrics Exposed
 
@@ -83,6 +83,38 @@ Counter metric that measures the number of "find" and "aggregate" MongoDB querie
 
 - Labels: `query_type`, `target_collection`, `target_db`
 
+## Performance Considerations and Overhead
+
+Instrumenting your MongoDB client does come with some level of performance overhead. Below are some factors to consider:
+
+### Memory Usage
+
+The library maintains in-memory metrics related to MongoDB commands, connections, and cursors, among other things. Expect a marginal increase in memory usage.
+
+### CPU Load
+
+The library hooks into various events in the MongoDB driver. Handling these events to generate metrics can cause a slight increase in CPU usage. However, this is generally negligible in a well-optimized application.
+
+### Database Latency
+
+The library instruments driver-side events and thus there should not be increase in MongoDb command latency.
+
+### Metrics Storage and Export
+
+Storing and exporting the metrics to Prometheus will also add some overhead. Make sure your Prometheus instance is capable of handling the load, and consider adjusting the scrape intervals if necessary.
+
+### Metric Cardinality
+
+Metrics with high cardinality can cause increased memory and CPU usage, both on the client and the Prometheus server. The library uses labels like target_collection and target_db which, when dealing with many unique collections or databases, could lead to high cardinality.
+
+#### Example:
+
+If you have 10,000 collections and 5,000 databases, a metric with both these labels could potentially generate 50,000,000 (10,000 x 5,000) unique time series data points. This can significantly impact the performance and resources of your monitoring infrastructure.
+
+### Recommendations
+
+- If you are running a high-throughput service, consider running some benchmarks to measure the exact overhead introduced by this library.
+- Be mindful of the size of your collections and your the number of your databases when using this library.
 
 ## Usage Example
 
