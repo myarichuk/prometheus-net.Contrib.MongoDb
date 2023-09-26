@@ -18,7 +18,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
         /// The bucket sizes are in bytes and are chosen to cover a range of typical MongoDB command sizes.
         /// </remarks>
         public static readonly Histogram CommandRequestSize = Metrics.CreateHistogram(
-            "mongodb_client_request_size",
+            "mongodb_client_command_request_size",
             "Size of MongoDB commands (in bytes)",
             new HistogramConfiguration
             {

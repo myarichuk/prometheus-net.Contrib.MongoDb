@@ -6,6 +6,8 @@ public abstract class MongoCommandEvent
 
     public string OperationRawType { get; set; }
 
+    public long OperationId { get; set; }
+
     public int RequestId { get; set; }
 
     public MongoOperationType OperationType { get; set; }

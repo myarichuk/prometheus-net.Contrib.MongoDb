@@ -14,7 +14,7 @@ namespace PrometheusNet.MongoDb.Handlers;
 /// </summary>
 internal class CursorMetricsProvider : IMetricProvider, IDisposable
 {
-    private const int CursorTimeoutMilliseconds = 1000 * 60 * 2; // 2 min
+    private const int CursorTimeoutMilliseconds = 1000 * 60 * 10; // 10 min
 
     private readonly ConcurrentDictionary<long, (int DocumentCount, DateTime LastUpdated, string Collection, string Database)> _cursorDocumentCount = new();
 
@@ -115,14 +115,12 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
                     .WithLabels(e.TargetCollection, e.TargetDatabase)
                     .Inc();
 
-                var cursorId = GetCursorId(e);
-                _cursorDurationTimers.TryAdd(cursorId, Stopwatch.StartNew());
+                _cursorDurationTimers.TryAdd(e.OperationId, Stopwatch.StartNew());
             }
 
             if (TryGetDocumentCountFromReply(e.Reply, out var documentCount))
             {
-                var cursorId = GetCursorId(e);
-                IncrementDocumentCount(e, cursorId, documentCount);
+                IncrementDocumentCount(e, e.OperationId, documentCount);
             }
 
             // final batch done -> cursor will close
@@ -131,8 +129,7 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
                 IncrementCursorDocumentCountMetrics(fetchedCursorId, e.TargetCollection, e.TargetDatabase);
                 DecrementOpenCursors(e);
 
-                var cursorId = GetCursorId(e);
-                if (_cursorDurationTimers.TryRemove(cursorId, out var timer))
+                if (_cursorDurationTimers.TryRemove(e.OperationId, out var timer))
                 {
                     timer.Stop();
                     OpenCursorDuration
@@ -170,19 +167,6 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
         }
     }
 
-    private static long GetCursorId(MongoCommandEventSuccess e)
-    {
-        if (TryGetCursorId(e.Reply, out var cursorId))
-        {
-            if (cursorId == 0)
-            {
-                cursorId = e.CursorId ?? 0;
-            }
-        }
-
-        return cursorId;
-    }
-
     private void DecrementOpenCursors(MongoCommandEventSuccess e) =>
         OpenCursors
             .WithLabels(e.TargetCollection, e.TargetDatabase)
@@ -218,27 +202,6 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
                 comparisonValue: _cursorDocumentCount.TryGetValue(cursorId, out var comparison) ? 
                     comparison : default);
         }
-    }
-
-    private static bool TryGetCursorId(Dictionary<string, object> commandReply, out long cursorId)
-    {
-        cursorId = 0;
-        if (commandReply.TryGetValue("cursor", out var cursorAsObject) &&
-            cursorAsObject is Dictionary<string, object> cursor)
-        {
-            if (cursor.TryGetValue("id", out var cursorIdAsObject))
-            {
-                if (cursorIdAsObject is not long cursorIdValue)
-                {
-                    return false;
-                }
-
-                cursorId = cursorIdValue;
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static bool IsFinalBatch(Dictionary<string, object> commandReply)

@@ -35,9 +35,7 @@ public class CommandDurationTests
             }
 
             var filterBuilder = Builders<TestDocument>.Filter;
-            var filter = filterBuilder.And(
-                filterBuilder.Ne(x => x.Id, "1"),
-                filterBuilder.In(x => x.Name, new List<string> { "Test5", "Test6", "Test7" }));
+            var filter = filterBuilder.Ne(x => x.Id, "1");
 
             var findOptions = new FindOptions<TestDocument>
             {
@@ -75,11 +73,11 @@ public class CommandDurationTests
 
         await MongoTestContext.RunAsync(async collection =>
         {
-            initialCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
+            initialCount = GetSampleValue(provider.CommandDurationHistogram, operationType, "success", "testCollection", "test");
 
             await operation(collection);
 
-            updatedCount = GetSampleValue(provider.CommandDuration, operationType, "success", "testCollection", "test");
+            updatedCount = GetSampleValue(provider.CommandDurationHistogram, operationType, "success", "testCollection", "test");
         });
 
         Assert.True(updatedCount > initialCount); // account for parallelism, so it won't be necessarily +1 difference
