@@ -23,7 +23,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
             new HistogramConfiguration
             {
                 LabelNames = new[] { "command_type", "target_collection", "target_db" },
-                Buckets = new[] { 5.0, 25.0, 50.0, 100.0, 200.0, 400.0, 800.0, 1600.0, 3200.0, 6400.0, 12800.0, 25600.0, 51200.0, 102400.0 }
+                Buckets = new[] { 50.0, 5000.0, 25000.0, 102400.0, 1024.0 * 1024.0 }
             });
 
         /// <summary>

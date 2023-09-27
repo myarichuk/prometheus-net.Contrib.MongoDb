@@ -17,7 +17,7 @@ namespace PrometheusNet.MongoDb.Handlers
             new HistogramConfiguration
             {
                 LabelNames = new[] { "query_type", "target_collection", "target_db" },
-                Buckets = new[] { 1.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 1000.0 },
+                Buckets = new[] { 5.0, 10.0, 50.0, 250.0 },
             });
 
         /// <summary>
@@ -40,6 +40,7 @@ namespace PrometheusNet.MongoDb.Handlers
 
         private int CalculateFilterSize(Dictionary<string, object> filter) => CalculateFilterSize(filter, 0);
 
+        // ReSharper disable once MethodTooLong
         private int CalculateFilterSize(object filterAsObject, int currentSum)
         {
             var intermediateSum = currentSum;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Prometheus;
 using PrometheusNet.MongoDb.Events;
@@ -6,11 +7,10 @@ using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
-    /// <summary>
-    /// Provides metrics for the count of documents in MongoDB cursor batches.
-    /// </summary>
     internal class DocumentCountInCursorMetricProvider : IMetricProvider
     {
+        private readonly ConcurrentDictionary<long, int> _documentCountsPerOperationId = new();
+
         /// <summary>
         /// Summary metric for tracking the number of documents fetched per cursor batch.
         /// </summary>
@@ -19,8 +19,23 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
             "Number of documents fetched per cursor batch (note the operationId label)",
             new SummaryConfiguration
             {
-                LabelNames = new[] { "operationId", "target_collection", "target_db" }
+                LabelNames = new[] { "target_collection", "target_db" }
             });
+
+        public void Handle(MongoCommandEventStart e)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Handle(MongoCommandEventFailure e)
+        {
+            if (_documentCountsPerOperationId.TryRemove(e.OperationId, out var documentCount))
+            {
+                DocumentCountInCursor
+                    .WithLabels(e.TargetCollection, e.TargetDatabase)
+                    .Observe(documentCount);
+            }
+        }
 
         /// <summary>
         /// Handles the MongoDB command event to extract document counts from the cursor.
@@ -30,10 +45,33 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
         {
             if (TryGetDocumentCountFromReply(e.Reply, out var documentCount))
             {
+                _documentCountsPerOperationId.AddOrUpdate(
+                    e.OperationId,
+                    documentCount,
+                    (_, existing) => existing + documentCount);
+            }
+
+            if (IsFinalBatch(e.Reply) && _documentCountsPerOperationId.TryRemove(e.OperationId, out documentCount))
+            {
                 DocumentCountInCursor
-                    .WithLabels(e.OperationId.ToString(), e.TargetCollection, e.TargetDatabase)
+                    .WithLabels(e.TargetCollection, e.TargetDatabase)
                     .Observe(documentCount);
             }
+        }
+
+        private static bool IsFinalBatch(Dictionary<string, object> commandReply)
+        {
+            if (commandReply.TryGetValue("cursor", out var cursorAsObject) &&
+                cursorAsObject is Dictionary<string, object> cursor)
+            {
+                if (cursor.TryGetValue("id", out var cursorIdAsObject) &&
+                    cursorIdAsObject is long cursorId)
+                {
+                    return cursorId == 0;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

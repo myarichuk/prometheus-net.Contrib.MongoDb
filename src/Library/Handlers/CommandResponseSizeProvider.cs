@@ -17,7 +17,7 @@ internal class CommandResponseSizeProvider : IMetricProvider
         new HistogramConfiguration
         {
             LabelNames = new[] { "command_type", "target_collection", "target_db" },
-            Buckets = new[] { 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0, 50000.0, 100000.0, double.PositiveInfinity },
+            Buckets = new[] { 50.0, 5000.0, 25000.0, 102400.0, 1024.0 * 1024.0 }
         });
 
     /// <summary>

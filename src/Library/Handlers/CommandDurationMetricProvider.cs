@@ -23,7 +23,7 @@ internal class CommandDurationMetricProvider : IMetricProvider
         "Duration of MongoDB commands (seconds)",
         new HistogramConfiguration
         {
-            Buckets = new[] { 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 40, 60 },
+            Buckets = new[] { 0.1, 0.5, 1, 5, 30 },
             LabelNames = new[] { "command_type", "status", "target_collection", "target_db" },
         });
 
