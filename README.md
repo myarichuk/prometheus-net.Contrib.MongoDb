@@ -41,9 +41,11 @@ Histogram metric that tracks the number of open cursors.
 
 ### Open Cursor Document Count (`mongodb_client_cursor_document_count`)
 
-Summary metric that measures the document count fetched by a cursor.
+Summary metric that measures the document count fetched by a cursor (sum by operationId to get total per cursor).
 
-- Labels: `target_collection`, `target_db`
+- Labels: `operationId`, `target_collection`, `target_db`
+
+> **Note:** In MongoDB, a single operation can be broken into multiple operations that can be grouped by `operationId` (for example find -> getMore that fetch query results in "pages", multiple bulkWrites, etc) 
 
 ### Command Errors (`mongodb_client_command_errors_total`)
 
