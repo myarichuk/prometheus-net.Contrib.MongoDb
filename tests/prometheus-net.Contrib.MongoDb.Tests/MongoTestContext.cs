@@ -1,5 +1,6 @@
 ﻿using EphemeralMongo;
 using MongoDB.Driver;
+using PrometheusNet.Contrib.MongoDb;
 using Xunit.Abstractions;
 
 namespace PrometheusNet.MongoDb.Tests;
