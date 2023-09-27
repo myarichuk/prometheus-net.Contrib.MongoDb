@@ -12,12 +12,12 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
     internal class DocumentCountInCursorMetricProvider : IMetricProvider
     {
         /// <summary>
-        /// Counter metric for tracking the number of documents fetched per cursor batch.
+        /// Summary metric for tracking the number of documents fetched per cursor batch.
         /// </summary>
-        internal readonly Counter DocumentCountInCursor = Metrics.CreateCounter(
+        internal readonly Summary DocumentCountInCursor = Metrics.CreateSummary(
             "mongodb_client_cursor_document_count",
             "Number of documents fetched per cursor batch (note the operationId label)",
-            new CounterConfiguration
+            new SummaryConfiguration
             {
                 LabelNames = new[] { "operationId", "target_collection", "target_db" }
             });
@@ -32,7 +32,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
             {
                 DocumentCountInCursor
                     .WithLabels(e.OperationId.ToString(), e.TargetCollection, e.TargetDatabase)
-                    .Inc(documentCount);
+                    .Observe(documentCount);
             }
         }
 
