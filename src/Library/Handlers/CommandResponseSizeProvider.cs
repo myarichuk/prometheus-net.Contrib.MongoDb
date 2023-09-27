@@ -12,7 +12,7 @@ internal class CommandResponseSizeProvider : IMetricProvider
     /// Buckets are configured to capture various ranges of response sizes.
     /// </summary>
     public static readonly Histogram CommandResponseSize = Metrics.CreateHistogram(
-        "mongodb_command_response_size", // Metric name
+        "mongodb_client_command_response_size", // Metric name
         "Size of the MongoDB command responses (in bytes)", // Help text
         new HistogramConfiguration
         {

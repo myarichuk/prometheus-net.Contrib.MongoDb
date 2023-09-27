@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
@@ -40,14 +41,17 @@ public static class MongoInstrumentation
     /// Instruments the given MongoClientSettings for Prometheus metrics.
     /// </summary>
     /// <param name="settings">The MongoClientSettings to instrument.</param>
+    /// <param name="configurator">A delegate to do additional writing for events if needed</param>
     /// <returns>The instrumented MongoClientSettings.</returns>
     /// <exception cref="Exception"><see cref="ClusterBuilder"/> delegate in ClusterConfigurator throws an exception</exception>
-    public static MongoClientSettings InstrumentForPrometheus(this MongoClientSettings settings)
+    public static MongoClientSettings InstrumentForPrometheus(this MongoClientSettings settings, Action<ClusterBuilder>? configurator = null)
     {
         var existingConfigurator = settings.ClusterConfigurator;
         settings.ClusterConfigurator = cb =>
         {
             existingConfigurator?.Invoke(cb);
+
+            configurator?.Invoke(cb);
 
             cb.Subscribe<CommandStartedEvent>(OnCommandStarted);
             cb.Subscribe<CommandSucceededEvent>(OnCommandSucceeded);
@@ -96,11 +100,23 @@ public static class MongoInstrumentation
 
     private static void OnCommandFailed(CommandFailedEvent e)
     {
+        if (e.CommandName == "isMaster")
+        {
+            return;
+        }
+
         if (Commands.Remove(e.RequestId, out var commandInfo))
         {
+            var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
+            if (targetCollection == string.Empty)
+            {
+                return;
+            }
+
             var commandEvent = new MongoCommandEventFailure
             {
                 RequestId = e.RequestId,
+                OperationId = e.OperationId ?? 0,
                 OperationRawType = e.CommandName,
                 Command = commandInfo.Command,
                 RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
@@ -108,7 +124,7 @@ public static class MongoInstrumentation
                 Failure = e.Failure,
                 OperationType = GetOperationType(e.CommandName),
                 TargetDatabase = GetDatabase(commandInfo.Command),
-                TargetCollection = GetCollection(e.CommandName, commandInfo.Command),
+                TargetCollection = targetCollection,
             };
             EventHub.Default.Publish(commandEvent);
         }
@@ -116,18 +132,30 @@ public static class MongoInstrumentation
 
     private static void OnCommandSucceeded(CommandSucceededEvent e)
     {
+        if (e.CommandName == "isMaster")
+        {
+            return;
+        }
+
         if (Commands.Remove(e.RequestId, out var commandInfo))
         {
+            var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
+            if (targetCollection == string.Empty)
+            {
+                return;
+            }
+
             var commandEvent = new MongoCommandEventSuccess
             {
                 RequestId = e.RequestId,
+                OperationId = e.OperationId ?? 0,
                 OperationRawType = e.CommandName,
                 Command = commandInfo.Command,
                 RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
                 Duration = e.Duration,
                 OperationType = GetOperationType(e.CommandName),
                 TargetDatabase = GetDatabase(commandInfo.Command),
-                TargetCollection = GetCollection(e.CommandName, commandInfo.Command),
+                TargetCollection = targetCollection,
                 RawReply = e.Reply.ToBson(),
                 Reply = e.Reply.ToDictionary(),
                 CursorId = long.TryParse(commandInfo.Command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
@@ -138,6 +166,11 @@ public static class MongoInstrumentation
 
     private static void OnCommandStarted(CommandStartedEvent e)
     {
+        if (e.CommandName == "isMaster")
+        {
+            return;
+        }
+
         var command = e.Command.ToDictionary();
         var rawCommandSizeInBytes = e.Command.ToBson()?.Length ?? 0;
         Commands.TryAdd(
@@ -148,16 +181,23 @@ public static class MongoInstrumentation
                 RawSizeInBytes = rawCommandSizeInBytes,
             });
 
+        var targetCollection = GetCollection(e.CommandName, command);
+        if (targetCollection == string.Empty)
+        {
+            return;
+        }
+
         var commandEvent = new MongoCommandEventStart
         {
             RequestId = e.RequestId,
+            OperationId = e.OperationId ?? 0,
             OperationRawType = e.CommandName,
             Command = command,
             RawRequestSizeInBytes = rawCommandSizeInBytes,
             Duration = null, // no duration yet
             OperationType = GetOperationType(e.CommandName),
             TargetDatabase = GetDatabase(command),
-            TargetCollection = GetCollection(e.CommandName, command),
+            TargetCollection = targetCollection,
             CursorId = long.TryParse(command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
         };
 
@@ -210,10 +250,15 @@ public static class MongoInstrumentation
     {
         if (command.TryGetValue("collection", out var collectionAsObject))
         {
-            return collectionAsObject.ToString();
+            return collectionAsObject?.ToString() ?? string.Empty;
         }
 
-        return command[commandName].ToString();
+        if (!command.TryGetValue(commandName, out var collectionName))
+        {
+            return string.Empty;
+        }
+
+        return collectionName?.ToString() ?? string.Empty;
     }
 
     private static string GetDatabase(Dictionary<string, object> command) =>

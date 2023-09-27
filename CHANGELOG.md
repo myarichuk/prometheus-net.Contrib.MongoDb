@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.6.0] - 2023-09-27
+### :bug: Bug Fixes
+- [`b19b972`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/b19b972f098ae2633efae621b9c73d8343de210b) - rewrite (fix) open cursor duration metric
+
+### :white_check_mark: Tests
+- [`f6bc217`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/f6bc21770be1c506c5fd06d5d563a47e9bd1e497) - tests for open cursor duration metric
+
+
+## [v0.8.4.0] - 2023-09-27
+### :bug: Bug Fixes
+- [`3febfaf`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/3febfaf994546230f5c2f9746db940b1e1632948) - reimplement cursor document count metric (so it will be grouped by operationId) - it should work properly now!
+
+
+## [v0.8.2.0] - 2023-09-26
+### :bug: Bug Fixes
+- [`bb46ea6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bb46ea62f369001a85365a9248e2e730652dc92a) - cursor metrics should *properly* work now
+
+
+## [v0.8.0.0] - 2023-09-26
+### :sparkles: New Features
+- [`fb6b61d`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/fb6b61d92f300fae250c090d67b3dfe29a662b18) - add mongodb_client_command_duration_summary and adjust buckets of the command duration
+
+### :bug: Bug Fixes
+- [`ae397de`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/ae397de29140a51153fcdb4f122e856ebb8931c8) - open cursor duration and batch size metrics (properly detect cursor Id - *facepalm*)
+
+### :wrench: Chores
+- [`f70b02e`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/f70b02ef912d6c72a0ecfa368202f9f3ceac2e30) - minor refactoring + fix metric names in readme
+
+
+## [v0.7.8.0] - 2023-09-26
+### :bug: Bug Fixes
+- [`bb36fa6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bb36fa6e8fec6f6f50eb27a51f7be22eecc062db) - gracefully handle isMaster command
+
+
+## [v0.7.6.0] - 2023-09-26
+### :bug: Bug Fixes
+- [`8cdebc0`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/8cdebc0a38228ead15218ad894d5d4e72cea461c) - make sure 'isMaster' command won't cause unhandled exceptions in the host process
+
+
+## [v0.7.4.0] - 2023-09-26
+### :wrench: Chores
+- [`6c70586`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/6c70586139bc68af50a2ff75cdd7329b7901bd04) - add configuration to instrumentation method *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
+## [v0.7.2.0] - 2023-09-26
+### :wrench: Chores
+- [`7b3fb36`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/7b3fb36e3ea5bfd73c284a00f7853ee07f5481f4) - add performance considerations to readme *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v0.7.0.0] - 2023-09-26
 ### :sparkles: New Features
 - [`bb439da`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bb439daa00b23091761b870d7a90172f0208b0bd) - add command request size metric + do some refactoring *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -93,3 +142,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.5.5.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.5.0.0...v0.5.5.0
 [v0.6.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.5.5.0...v0.6.0.0
 [v0.7.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.6.0.0...v0.7.0.0
+[v0.7.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.0.0...v0.7.2.0
+[v0.7.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.2.0...v0.7.4.0
+[v0.7.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.4.0...v0.7.6.0
+[v0.7.8.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.6.0...v0.7.8.0
+[v0.8.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.10.0...v0.8.0.0
+[v0.8.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.0.0...v0.8.2.0
+[v0.8.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.2.0...v0.8.4.0
+[v0.8.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.4.0...v0.8.6.0
