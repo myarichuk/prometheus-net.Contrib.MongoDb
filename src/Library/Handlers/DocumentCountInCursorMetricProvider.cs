@@ -22,10 +22,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
                 LabelNames = new[] { "target_collection", "target_db" }
             });
 
-        public void Handle(MongoCommandEventStart e)
-        {
-            throw new NotImplementedException();
-        }
+        public void Handle(MongoCommandEventStart e) => _documentCountsPerOperationId.TryAdd(e.OperationId, 0);
 
         public void Handle(MongoCommandEventFailure e)
         {
