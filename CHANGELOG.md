@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.8.4.0] - 2023-09-27
+### :bug: Bug Fixes
+- [`3febfaf`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/3febfaf994546230f5c2f9746db940b1e1632948) - reimplement cursor document count metric (so it will be grouped by operationId) - it should work properly now!
+
+
 ## [v0.8.2.0] - 2023-09-26
 ### :bug: Bug Fixes
 - [`bb46ea6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bb46ea62f369001a85365a9248e2e730652dc92a) - cursor metrics should *properly* work now
@@ -135,3 +140,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.7.8.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.6.0...v0.7.8.0
 [v0.8.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.7.10.0...v0.8.0.0
 [v0.8.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.0.0...v0.8.2.0
+[v0.8.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.2.0...v0.8.4.0
