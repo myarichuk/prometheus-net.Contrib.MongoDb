@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.2.0] - 2023-09-27
+### :bug: Bug Fixes
+- [`94c1452`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/94c145274c0721a27456e855335558319834b62b) - silly mistake (don't code with speed!) *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v2.0.0.0] - 2023-09-27
 ### :boom: BREAKING CHANGES
 - due to [`898a1d6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/898a1d645843c6bb6e9eceb33c294d8995703846) - aggregate per operation on the metric side before publishing to prometheus (reduce cardinality) - this removes operationId label from the metric mongodb_client_cursor_document_count *(commit by [@myarichuk](https://github.com/myarichuk))*:
@@ -179,3 +184,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.8.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.4.0...v0.8.6.0
 [v1.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.6.0...v1.0.0.0
 [v2.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v1.0.0.0...v2.0.0.0
+[v2.0.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.0.0...v2.0.2.0
