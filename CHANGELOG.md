@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.0.0] - 2023-09-27
+### :boom: BREAKING CHANGES
+- due to [`898a1d6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/898a1d645843c6bb6e9eceb33c294d8995703846) - aggregate per operation on the metric side before publishing to prometheus (reduce cardinality) - this removes operationId label from the metric mongodb_client_cursor_document_count *(commit by [@myarichuk](https://github.com/myarichuk))*:
+
+  aggregate per operation on the metric side before publishing to prometheus (reduce cardinality) - this removes operationId label from the metric mongodb_client_cursor_document_count
+
+
+### :recycle: Refactors
+- [`269af7c`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/269af7c3ad9f5c88d14101161faadda68452c85b) - reduce amount of buckets (reduce data volume so Prometheus won't timeout under stress) *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`898a1d6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/898a1d645843c6bb6e9eceb33c294d8995703846) - aggregate per operation on the metric side before publishing to prometheus (reduce cardinality) - this removes operationId label from the metric mongodb_client_cursor_document_count *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v1.0.0.0] - 2023-09-27
 ### :boom: BREAKING CHANGES
 - due to [`3f1fc43`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/3f1fc43ca7b390abb50837170452ebd7aab5afe0) - change mongodb_client_cursor_document_count from counter to summary *(commit by [@myarichuk](https://github.com/myarichuk))*:
@@ -166,3 +178,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.8.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.2.0...v0.8.4.0
 [v0.8.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.4.0...v0.8.6.0
 [v1.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.6.0...v1.0.0.0
+[v2.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v1.0.0.0...v2.0.0.0
