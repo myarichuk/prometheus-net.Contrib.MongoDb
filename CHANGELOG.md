@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.0.0] - 2023-09-27
+### :boom: BREAKING CHANGES
+- due to [`3f1fc43`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/3f1fc43ca7b390abb50837170452ebd7aab5afe0) - change mongodb_client_cursor_document_count from counter to summary *(commit by [@myarichuk](https://github.com/myarichuk))*:
+
+  change mongodb_client_cursor_document_count from counter to summary
+
+
+### :recycle: Refactors
+- [`3f1fc43`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/3f1fc43ca7b390abb50837170452ebd7aab5afe0) - change mongodb_client_cursor_document_count from counter to summary *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :wrench: Chores
+- [`3c3175a`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/3c3175a384fe3393ceb0405c1d40b73c8ab4f053) - do minor refactorings (code quality) *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`f767abe`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/f767abea4f78f0bad98951a0bb67be7c20d7a425) - fix merge conflict *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v0.8.6.0] - 2023-09-27
 ### :bug: Bug Fixes
 - [`b19b972`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/b19b972f098ae2633efae621b9c73d8343de210b) - rewrite (fix) open cursor duration metric
@@ -150,3 +165,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.8.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.0.0...v0.8.2.0
 [v0.8.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.2.0...v0.8.4.0
 [v0.8.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.4.0...v0.8.6.0
+[v1.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v0.8.6.0...v1.0.0.0
