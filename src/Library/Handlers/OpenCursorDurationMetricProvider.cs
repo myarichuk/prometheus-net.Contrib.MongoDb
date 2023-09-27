@@ -20,7 +20,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
             "Duration a MongoDB cursor is open in seconds",
             new HistogramConfiguration
             {
-                Buckets = new[] { 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60, 120, 300 },
+                Buckets = new[] { 0.1, 1, 5, 30 },
                 LabelNames = new[] { "target_collection", "target_db" },
             });
 
