@@ -43,7 +43,7 @@ Histogram metric that tracks the number of open cursors.
 
 Summary metric that measures the document count fetched by a cursor (sum by operationId to get total per cursor).
 
-- Labels: `operationId`, `target_collection`, `target_db`
+- Labels: `target_collection`, `target_db`
 
 > **Note:** In MongoDB, a single operation can be broken into multiple operations that can be grouped by `operationId` (for example find -> getMore that fetch query results in "pages", multiple bulkWrites, etc) 
 
