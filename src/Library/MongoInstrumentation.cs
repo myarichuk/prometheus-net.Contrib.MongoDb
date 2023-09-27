@@ -4,18 +4,18 @@ using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
 using PrometheusNet.Contrib.MongoDb.Events;
+using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
-// ReSharper disable TooManyChainedReferences
+
 #pragma warning disable SA1503
 #pragma warning disable SA1201
 
 // ReSharper disable TooManyDeclarations
-
+// ReSharper disable TooManyChainedReferences
 // ReSharper disable ComplexConditionExpression
 // ReSharper disable MethodTooLong
 // ReSharper disable CognitiveComplexity
-
-namespace PrometheusNet.MongoDb;
+namespace PrometheusNet.Contrib.MongoDb;
 
 /// <summary>
 /// Provides instrumentation for MongoDB operations, exporting metrics to Prometheus.
@@ -25,6 +25,7 @@ public static class MongoInstrumentation
     private class CommandInfo
     {
         public int RawSizeInBytes { get; set; }
+
         public Dictionary<string, object> Command { get; set; }
     }
 
@@ -139,11 +140,12 @@ public static class MongoInstrumentation
     {
         var command = e.Command.ToDictionary();
         var rawCommandSizeInBytes = e.Command.ToBson()?.Length ?? 0;
-        Commands.TryAdd(e.RequestId, 
+        Commands.TryAdd(
+            e.RequestId,
             new CommandInfo
             {
                 Command = command,
-                RawSizeInBytes = rawCommandSizeInBytes
+                RawSizeInBytes = rawCommandSizeInBytes,
             });
 
         var commandEvent = new MongoCommandEventStart
@@ -162,6 +164,7 @@ public static class MongoInstrumentation
         EventHub.Default.Publish(commandEvent);
     }
 
+    // ReSharper disable once CyclomaticComplexity
     private static MongoOperationType GetOperationType(string commandName)
     {
         if (string.Equals(commandName, "insert", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Insert;
