@@ -46,17 +46,6 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
             LabelNames = new[] { "target_collection", "target_db" },
         });
 
-    /// <summary>
-    /// A Summary metric to monitor the document counts retrieved through MongoDB cursors.
-    /// </summary>
-    public readonly Summary OpenCursorDocumentCount = Metrics.CreateSummary(
-        "mongodb_client_cursor_document_count",
-        "Count of all documents fetched by a cursor (all batches)",
-        new SummaryConfiguration
-        {
-            LabelNames = new[] { "target_collection", "target_db" },
-        });
-
     private readonly CancellationTokenSource _cts = new();
 
     /// <summary>
@@ -126,7 +115,6 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
             // final batch done -> cursor will close
             if (IsFinalBatch(e.Reply))
             {
-                IncrementCursorDocumentCountMetrics(e.OperationId, e.TargetCollection, e.TargetDatabase);
                 DecrementOpenCursors(e);
 
                 if (_cursorDurationTimers.TryRemove(e.OperationId, out var timer))
@@ -153,9 +141,6 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
                 .WithLabels(e.TargetCollection, e.TargetDatabase)
                 .Dec();
 
-            // if there is a failure, record what we have so far
-            IncrementCursorDocumentCountMetrics(e.OperationId, e.TargetCollection, e.TargetDatabase);
-
             if (_cursorDurationTimers.TryRemove(e.OperationId, out var timer))
             {
                 timer.Stop();
@@ -171,16 +156,6 @@ internal class CursorMetricsProvider : IMetricProvider, IDisposable
         OpenCursors
             .WithLabels(e.TargetCollection, e.TargetDatabase)
             .Dec();
-
-    private void IncrementCursorDocumentCountMetrics(long cursorId, string targetCollection, string targetDatabase)
-    {
-        if (_cursorDocumentCount.TryRemove(cursorId, out var rdci))
-        {
-            OpenCursorDocumentCount
-                .WithLabels(targetCollection, targetDatabase)
-                .Observe(rdci.DocumentCount);
-        }
-    }
 
     private void IncrementDocumentCount(MongoCommandEventSuccess e, long cursorId, int documentCount)
     {
