@@ -20,10 +20,10 @@ internal static class MetricProviderRegistrar
     static MetricProviderRegistrar() => RegisterAll();
 
     // needed to prevent GC from collecting metric providers
-    private static readonly ConcurrentDictionary<Type, IMetricProvider> MetricsProviders = new();
+    private static readonly ConcurrentDictionary<Type, IMongoDbClientMetricProvider> MetricsProviders = new();
 
     public static void ReplaceForTests<TProvider>(TProvider newProvider)
-        where TProvider : class, IMetricProvider
+        where TProvider : class, IMongoDbClientMetricProvider
     {
         if (MetricsProviders.TryRemove(typeof(TProvider), out var removedProvider))
         {
@@ -60,7 +60,7 @@ internal static class MetricProviderRegistrar
 
         foreach (var metricProviderType in EnumerateIMetricsHandlers())
         {
-            var metricProvider = (IMetricProvider)Activator.CreateInstance(metricProviderType);
+            var metricProvider = (IMongoDbClientMetricProvider)Activator.CreateInstance(metricProviderType);
             MetricsProviders.TryAdd(metricProviderType, metricProvider);
 
             EventHub.Default.Subscribe<MongoCommandEventStart>(metricProvider.Handle);
@@ -72,7 +72,7 @@ internal static class MetricProviderRegistrar
         }
     }
 
-    public static bool TryGetProvider<TProvider>(out TProvider? provider) where TProvider : class, IMetricProvider
+    public static bool TryGetProvider<TProvider>(out TProvider? provider) where TProvider : class, IMongoDbClientMetricProvider
     {
         var success = MetricsProviders.TryGetValue(typeof(TProvider), out var providerAsObject);
         return success ?
@@ -85,6 +85,11 @@ internal static class MetricProviderRegistrar
         var assemblies = AppDomain.CurrentDomain.GetAssemblies();
         foreach (var assembly in assemblies.Where(x => File.Exists(x.Location)))
         {
+            if (assembly.IsDynamic)
+            {
+                continue;
+            }
+
             if (ExcludedAssemblyPrefixes.Any(prefix => 
                     assembly.FullName.StartsWith(
                         prefix, StringComparison.OrdinalIgnoreCase)))
@@ -92,11 +97,15 @@ internal static class MetricProviderRegistrar
                 continue;
             }
 
-            foreach (var type in assembly.GetTypes())
+            // the location might not exist for some assemblies, so check that too
+            if (File.Exists(assembly.Location))
             {
-                if (typeof(IMetricProvider).IsAssignableFrom(type) && !type.IsInterface)
+                foreach (var type in assembly.GetTypes())
                 {
-                    yield return type;
+                    if (typeof(IMongoDbClientMetricProvider).IsAssignableFrom(type) && !type.IsInterface)
+                    {
+                        yield return type;
+                    }
                 }
             }
         }
