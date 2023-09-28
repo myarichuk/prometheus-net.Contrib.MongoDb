@@ -83,13 +83,8 @@ internal static class MetricProviderRegistrar
     private static IEnumerable<Type> EnumerateIMetricsHandlers()
     {
         var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-        foreach (var assembly in assemblies.Where(x => File.Exists(x.Location)))
+        foreach (var assembly in assemblies.Where(x => !x.IsDynamic && File.Exists(x.Location)))
         {
-            if (assembly.IsDynamic)
-            {
-                continue;
-            }
-
             if (ExcludedAssemblyPrefixes.Any(prefix => 
                     assembly.FullName.StartsWith(
                         prefix, StringComparison.OrdinalIgnoreCase)))
