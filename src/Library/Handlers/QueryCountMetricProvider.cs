@@ -6,7 +6,7 @@ namespace PrometheusNet.MongoDb.Handlers;
 /// <summary>
 /// Provides functionality for tracking and recording MongoDB query counts.
 /// </summary>
-internal class QueryCountMetricProvider : IMetricProvider
+internal class QueryCountMetricProvider : IMongoDbClientMetricProvider
 {
     /// <summary>
     /// A counter metric that captures the count of MongoDB queries.

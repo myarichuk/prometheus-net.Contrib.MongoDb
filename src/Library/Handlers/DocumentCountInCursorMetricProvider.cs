@@ -7,7 +7,7 @@ using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
-    internal class DocumentCountInCursorMetricProvider : IMetricProvider
+    internal class DocumentCountInCursorMetricProvider : IMongoDbClientMetricProvider
     {
         private readonly ConcurrentDictionary<long, int> _documentCountsPerOperationId = new();
 

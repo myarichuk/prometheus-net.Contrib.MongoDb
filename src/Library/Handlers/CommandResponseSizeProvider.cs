@@ -6,7 +6,7 @@ using PrometheusNet.MongoDb.Handlers;
 /// <summary>
 /// Provides metrics related to the size of MongoDB command responses.
 /// </summary>
-internal class CommandResponseSizeProvider : IMetricProvider
+internal class CommandResponseSizeProvider : IMongoDbClientMetricProvider
 {
     /// <summary>
     /// Histogram metric to measure the size of MongoDB command responses.

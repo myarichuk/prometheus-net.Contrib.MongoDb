@@ -1,7 +1,6 @@
 ﻿namespace PrometheusNet.Contrib.MongoDb.Events
 {
-
-    internal record MongoConnectionClosedEvent : MongoConnectionEvent
+    public record MongoConnectionClosedEvent : MongoConnectionEvent
     {
     }
 }
