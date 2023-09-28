@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.0.0.0] - 2023-09-28
+### :boom: BREAKING CHANGES
+- due to [`bf49938`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bf49938bfdb2ec829cf616796f8ff23f6a4079d7) - remove redundant metric "mongodb_client_command_duration_summary" - it provides roughly the same metrics *(commit by [@myarichuk](https://github.com/myarichuk))*:
+
+  remove redundant metric "mongodb_client_command_duration_summary" - it provides roughly the same metrics
+
+
+### :recycle: Refactors
+- [`bf49938`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bf49938bfdb2ec829cf616796f8ff23f6a4079d7) - remove redundant metric "mongodb_client_command_duration_summary" - it provides roughly the same metrics *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v2.0.6.0] - 2023-09-28
 ### :recycle: Refactors
 - [`bebc41d`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bebc41dc8f78c4429a83fb54648c7002abbc2984) - create less buckets for request & response size histogram (no need for better granularity to understand what's going on there - the new buckets of 512 bytes, 1kbyte, 100kbyte, 1mbyte should be enough to identify bottlenecks) *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -197,3 +208,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v2.0.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.0.0...v2.0.2.0
 [v2.0.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.2.0...v2.0.4.0
 [v2.0.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.4.0...v2.0.6.0
+[v3.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.6.0...v3.0.0.0
