@@ -21,12 +21,6 @@ Histogram metric that measures the duration of MongoDB commands in seconds.
 
 - Labels: `command_type`, `status`, `target_collection`, `target_db`
 
-### Command Duration (Summary) (`mongodb_client_command_duration_summary`)
-
-Summary metric that measures the duration of MongoDB commands in seconds.
-
-- Labels: `command_type`, `status`, `target_collection`, `target_db`
-
 ### Open Cursors Count (`mongodb_client_open_cursors_count`)
 
 Gauge metric that tracks the number of open cursors.
