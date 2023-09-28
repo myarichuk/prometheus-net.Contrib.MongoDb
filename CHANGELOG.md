@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.0.2.0] - 2023-09-28
+### :bug: Bug Fixes
+- [`d997cb6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/d997cb6b3e87ac6fbfe960bbd1be3cdd8ccfd071) - do not scan dynamic assemblies for metric provider implementations (closes [#42](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/pull/42)) *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :recycle: Refactors
+- [`1e0b40a`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/1e0b40a3304b894b8ee86da8409526d7606ea40e) - rename `IMetricProvider` to `IMongoDbClientMetricProvider` and make it public - preparation work to allow users defining custom client-side metrics *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v3.0.0.0] - 2023-09-28
 ### :boom: BREAKING CHANGES
 - due to [`bf49938`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/bf49938bfdb2ec829cf616796f8ff23f6a4079d7) - remove redundant metric "mongodb_client_command_duration_summary" - it provides roughly the same metrics *(commit by [@myarichuk](https://github.com/myarichuk))*:
@@ -209,3 +217,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v2.0.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.2.0...v2.0.4.0
 [v2.0.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.4.0...v2.0.6.0
 [v3.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.6.0...v3.0.0.0
+[v3.0.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.0.0...v3.0.2.0
