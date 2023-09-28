@@ -11,9 +11,9 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers;
 
 /// <summary>
 /// Provides functionality to track metrics related to MongoDB cursors.
-/// Implements the <see cref="IMetricProvider"/> interface.
+/// Implements the <see cref="IMongoDbClientMetricProvider"/> interface.
 /// </summary>
-internal class OpenCursorsMetricsProvider : IMetricProvider
+internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
 {
     /// <summary>
     /// A Gauge metric to monitor the number of open MongoDB cursors.

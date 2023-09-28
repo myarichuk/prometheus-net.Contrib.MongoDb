@@ -2,7 +2,7 @@
 
 namespace PrometheusNet.Contrib.MongoDb.Events
 {
-    internal record MongoConnectionEvent
+    public record MongoConnectionEvent
     {
         public string Endpoint { get; set; } = string.Empty;
 

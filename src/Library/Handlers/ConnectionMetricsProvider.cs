@@ -9,7 +9,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers;
 /// <summary>
 /// Provides functionality for tracking and recording MongoDB connection metrics.
 /// </summary>
-internal class ConnectionMetricsProvider : IMetricProvider
+internal class ConnectionMetricsProvider : IMongoDbClientMetricProvider
 {
     private readonly ConcurrentDictionary<(int, string), Stopwatch> _connectionDuration = new();
 

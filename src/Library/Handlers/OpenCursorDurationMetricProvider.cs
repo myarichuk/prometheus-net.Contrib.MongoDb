@@ -5,7 +5,7 @@ using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
-    internal class OpenCursorDurationMetricProvider: IMetricProvider
+    internal class OpenCursorDurationMetricProvider: IMongoDbClientMetricProvider
     {
         private readonly ConcurrentDictionary<long, DateTime> _cursorStartTimes = new();
 

@@ -6,7 +6,7 @@ namespace PrometheusNet.MongoDb.Handlers
     /// <summary>
     /// Provides functionality for tracking and recording the size of MongoDB query filters.
     /// </summary>
-    internal class QueryFilterSizeMetricProvider : IMetricProvider
+    internal class QueryFilterSizeMetricProvider : IMongoDbClientMetricProvider
     {
         /// <summary>
         /// A histogram metric that captures the size of MongoDB query filters.

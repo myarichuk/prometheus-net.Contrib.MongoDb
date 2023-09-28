@@ -6,7 +6,7 @@ namespace PrometheusNet.MongoDb.Handlers;
 /// <summary>
 /// Provides functionality for tracking and recording MongoDB command durations.
 /// </summary>
-internal class CommandDurationMetricProvider : IMetricProvider
+internal class CommandDurationMetricProvider : IMongoDbClientMetricProvider
 {
     private const string SuccessStatus = "success";
     private const string FailureStatus = "failure";

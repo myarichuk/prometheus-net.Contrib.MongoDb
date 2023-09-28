@@ -3,7 +3,7 @@ using PrometheusNet.MongoDb.Events;
 
 namespace PrometheusNet.MongoDb.Handlers;
 
-internal interface IMetricProvider
+public interface IMongoDbClientMetricProvider
 {
     void Handle(MongoCommandEventStart e)
     {

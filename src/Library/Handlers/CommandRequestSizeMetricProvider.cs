@@ -4,7 +4,7 @@ using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
-    internal class CommandRequestSizeMetricProvider: IMetricProvider
+    internal class CommandRequestSizeMetricProvider: IMongoDbClientMetricProvider
     {
         /// <summary>
         /// A histogram metric that tracks the size (in bytes) of MongoDB commands being sent.
