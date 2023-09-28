@@ -1,6 +1,7 @@
 ﻿using Prometheus;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
+// ReSharper disable ComplexConditionExpression
 
 /// <summary>
 /// Provides metrics related to the size of MongoDB command responses.
@@ -17,7 +18,7 @@ internal class CommandResponseSizeProvider : IMetricProvider
         new HistogramConfiguration
         {
             LabelNames = new[] { "command_type", "target_collection", "target_db" },
-            Buckets = new[] { 50.0, 5000.0, 25000.0, 102400.0, 1024.0 * 1024.0 }
+            Buckets = new[] { 512.0, 1024.0, 100.0 * 1024, 1024.0 * 1024.0 },
         });
 
     /// <summary>
