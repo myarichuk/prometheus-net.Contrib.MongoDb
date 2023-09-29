@@ -6,6 +6,8 @@ on:
       - closed
     branches:
       - main
+  workflow_dispatch: {}
+
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
