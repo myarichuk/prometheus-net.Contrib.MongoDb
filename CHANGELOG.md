@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.0.9.0] - 2023-09-29
+### :bug: Bug Fixes
+- [`b30491f`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/b30491f82bafde23c653b3f8a9cceb8fb1ab8cbd) - update create tag task to use github action token *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`75f1ae5`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/75f1ae58db1962ad8f0ebfc160f19406d70be418) - temporarily disable step to create relevant tag until it can be fixed *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`d720eb4`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/d720eb43d6c7d19569d992c1d00d520130e55f1a) - **Github workflow**: don't allow Build & Pack to skip on manual runs *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :wrench: Chores
+- [`f0a8bf5`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/f0a8bf5469d1070d6357a1c548144c1a82164f86) - add ability to run publish workflow manually (debugging 403 response issue for pushing a version tag in an workflow) *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`c820883`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/c82088309f88795a7821be67c0df503ebc7ae13b) - uncommit pushing of a tag (debugging 403 issue) *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v3.0.2.0] - 2023-09-28
 ### :bug: Bug Fixes
 - [`d997cb6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/d997cb6b3e87ac6fbfe960bbd1be3cdd8ccfd071) - do not scan dynamic assemblies for metric provider implementations (closes [#42](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/pull/42)) *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -218,3 +229,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v2.0.6.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.4.0...v2.0.6.0
 [v3.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.6.0...v3.0.0.0
 [v3.0.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.0.0...v3.0.2.0
+[v3.0.9.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.2.0...v3.0.9.0
