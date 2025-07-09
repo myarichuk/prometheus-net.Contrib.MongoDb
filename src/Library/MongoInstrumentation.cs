@@ -27,7 +27,7 @@ public static class MongoInstrumentation
     {
         public int RawSizeInBytes { get; set; }
 
-        public Dictionary<string, object> Command { get; set; }
+        public Dictionary<string, object> Command { get; set; } = default!;
     }
 
     private static readonly ConcurrentDictionary<int, CommandInfo> Commands = new();
@@ -105,7 +105,7 @@ public static class MongoInstrumentation
             return;
         }
 
-        if (Commands.Remove(e.RequestId, out var commandInfo))
+        if (Commands.TryRemove(e.RequestId, out var commandInfo))
         {
             var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
             if (targetCollection == string.Empty)
@@ -137,7 +137,7 @@ public static class MongoInstrumentation
             return;
         }
 
-        if (Commands.Remove(e.RequestId, out var commandInfo))
+        if (Commands.TryRemove(e.RequestId, out var commandInfo))
         {
             var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
             if (targetCollection == string.Empty)
