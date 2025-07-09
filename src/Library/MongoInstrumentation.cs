@@ -27,7 +27,7 @@ public static class MongoInstrumentation
     {
         public int RawSizeInBytes { get; set; }
 
-        public required Dictionary<string, object> Command { get; set; }
+        public Dictionary<string, object> Command { get; set; } = default!;
     }
 
     private static readonly ConcurrentDictionary<int, CommandInfo> Commands = new();
