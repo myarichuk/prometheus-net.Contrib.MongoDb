@@ -38,41 +38,42 @@ namespace PrometheusNet.MongoDb.Handlers
             }
         }
 
-        private int CalculateFilterSize(Dictionary<string, object> filter) => CalculateFilterSize(filter, 0);
-
-        // ReSharper disable once MethodTooLong
-        private int CalculateFilterSize(object filterAsObject, int currentSum)
+        private int CalculateFilterSize(Dictionary<string, object> filter)
         {
-            var intermediateSum = currentSum;
+            var filterElements = new Stack<object>();
+            filterElements.Push(filter);
 
-            switch (filterAsObject)
+            var totalSize = 0;
+
+            while (filterElements.Count > 0)
             {
-                case Dictionary<string, object> filter:
-                    {
-                        foreach (var kvp in filter)
+                var filterElement = filterElements.Pop();
+
+                switch (filterElement)
+                {
+                    case Dictionary<string, object> nestedFilter:
+                        foreach (var value in nestedFilter.Values)
                         {
-                            intermediateSum = CalculateFilterSize(kvp.Value, intermediateSum);
+                            filterElements.Push(value);
                         }
 
                         break;
-                    }
 
-                case IEnumerable<object> filterAsArray:
-                    {
-                        foreach (var item in filterAsArray)
+                    case IEnumerable<object> enumerable:
+                        foreach (var value in enumerable)
                         {
-                            intermediateSum = CalculateFilterSize(item, intermediateSum);
+                            filterElements.Push(value);
                         }
 
                         break;
-                    }
 
-                default:
-                    intermediateSum++;
-                    break;
+                    default:
+                        totalSize++;
+                        break;
+                }
             }
 
-            return intermediateSum;
+            return totalSize;
         }
 
     }
