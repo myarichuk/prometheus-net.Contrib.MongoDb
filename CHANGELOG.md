@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v3.0.26.0] - 2025-10-17
+### :wrench: Chores
+- [`62323e6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/62323e647d88e9df7bd5ac807bca37c9c2e620b0) - **deps**: bump stefanzweifel/git-auto-commit-action from 5 to 7 *(commit by [@dependabot[bot]](https://github.com/apps/dependabot))*
+
+
 ## [v3.0.9.0] - 2023-09-29
 ### :bug: Bug Fixes
 - [`b30491f`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/b30491f82bafde23c653b3f8a9cceb8fb1ab8cbd) - update create tag task to use github action token *(commit by [@myarichuk](https://github.com/myarichuk))*
@@ -230,3 +235,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v3.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v2.0.6.0...v3.0.0.0
 [v3.0.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.0.0...v3.0.2.0
 [v3.0.9.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.2.0...v3.0.9.0
+[v3.0.26.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.24.0...v3.0.26.0
