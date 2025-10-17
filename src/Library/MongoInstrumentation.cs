@@ -104,30 +104,31 @@ public static class MongoInstrumentation
         {
             return;
         }
-
-        if (Commands.TryRemove(e.RequestId, out var commandInfo))
+        if (!Commands.TryRemove(e.RequestId, out var commandInfo))
         {
-            var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
-            if (targetCollection == string.Empty)
-            {
-                return;
-            }
-
-            var commandEvent = new MongoCommandEventFailure
-            {
-                RequestId = e.RequestId,
-                OperationId = e.OperationId ?? 0,
-                OperationRawType = e.CommandName,
-                Command = commandInfo.Command,
-                RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
-                Duration = e.Duration,
-                Failure = e.Failure,
-                OperationType = GetOperationType(e.CommandName),
-                TargetDatabase = GetDatabase(commandInfo.Command),
-                TargetCollection = targetCollection,
-            };
-            EventHub.Default.Publish(commandEvent);
+            return;
         }
+
+        var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
+        if (targetCollection == string.Empty)
+        {
+            return;
+        }
+
+        var commandEvent = new MongoCommandEventFailure
+        {
+            RequestId = e.RequestId,
+            OperationId = e.OperationId ?? 0,
+            OperationRawType = e.CommandName,
+            Command = commandInfo.Command,
+            RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
+            Duration = e.Duration,
+            Failure = e.Failure,
+            OperationType = GetOperationType(e.CommandName),
+            TargetDatabase = GetDatabase(commandInfo.Command),
+            TargetCollection = targetCollection,
+        };
+        EventHub.Default.Publish(commandEvent);
     }
 
     private static void OnCommandSucceeded(CommandSucceededEvent e)
@@ -136,32 +137,33 @@ public static class MongoInstrumentation
         {
             return;
         }
-
-        if (Commands.TryRemove(e.RequestId, out var commandInfo))
+        if (!Commands.TryRemove(e.RequestId, out var commandInfo))
         {
-            var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
-            if (targetCollection == string.Empty)
-            {
-                return;
-            }
-
-            var commandEvent = new MongoCommandEventSuccess
-            {
-                RequestId = e.RequestId,
-                OperationId = e.OperationId ?? 0,
-                OperationRawType = e.CommandName,
-                Command = commandInfo.Command,
-                RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
-                Duration = e.Duration,
-                OperationType = GetOperationType(e.CommandName),
-                TargetDatabase = GetDatabase(commandInfo.Command),
-                TargetCollection = targetCollection,
-                RawReply = e.Reply.ToBson(),
-                Reply = e.Reply.ToDictionary(),
-                CursorId = long.TryParse(commandInfo.Command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
-            };
-            EventHub.Default.Publish(commandEvent);
+            return;
         }
+
+        var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
+        if (targetCollection == string.Empty)
+        {
+            return;
+        }
+
+        var commandEvent = new MongoCommandEventSuccess
+        {
+            RequestId = e.RequestId,
+            OperationId = e.OperationId ?? 0,
+            OperationRawType = e.CommandName,
+            Command = commandInfo.Command,
+            RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
+            Duration = e.Duration,
+            OperationType = GetOperationType(e.CommandName),
+            TargetDatabase = GetDatabase(commandInfo.Command),
+            TargetCollection = targetCollection,
+            RawReply = e.Reply.ToBson(),
+            Reply = e.Reply.ToDictionary(),
+            CursorId = long.TryParse(commandInfo.Command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
+        };
+        EventHub.Default.Publish(commandEvent);
     }
 
     private static void OnCommandStarted(CommandStartedEvent e)
