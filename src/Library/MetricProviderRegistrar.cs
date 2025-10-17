@@ -1,4 +1,7 @@
-﻿using System.Collections.Concurrent;
+using System;
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Reflection;
 using PrometheusNet.Contrib.MongoDb.Events;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
@@ -9,11 +12,6 @@ namespace PrometheusNet.MongoDb;
 
 internal static class MetricProviderRegistrar
 {
-    private static readonly string[] ExcludedAssemblyPrefixes =
-    {
-        "System.", "Microsoft.", "mscorlib",
-    };
-
     private static bool _isRegistered;
 
     // just in case, for testing mostly
@@ -48,6 +46,17 @@ internal static class MetricProviderRegistrar
 
     public static void RegisterAll()
     {
+        RegisterAll(new[] { typeof(MetricProviderRegistrar).Assembly });
+    }
+
+    public static void RegisterAll(IEnumerable<Assembly> assemblies)
+    {
+        var assembliesToScan = assemblies?.ToArray() ?? Array.Empty<Assembly>();
+        if (assembliesToScan.Length == 0)
+        {
+            assembliesToScan = new[] { typeof(MetricProviderRegistrar).Assembly };
+        }
+
         lock (MetricsProviders)
         {
             if (_isRegistered)
@@ -58,7 +67,7 @@ internal static class MetricProviderRegistrar
             _isRegistered = true;
         }
 
-        foreach (var metricProviderType in EnumerateIMetricsHandlers())
+        foreach (var metricProviderType in EnumerateIMetricsHandlers(assembliesToScan))
         {
             var metricProvider = (IMongoDbClientMetricProvider)Activator.CreateInstance(metricProviderType);
             MetricsProviders.TryAdd(metricProviderType, metricProvider);
@@ -80,27 +89,20 @@ internal static class MetricProviderRegistrar
             (provider = null) != null;
     }
 
-    private static IEnumerable<Type> EnumerateIMetricsHandlers()
+    private static IEnumerable<Type> EnumerateIMetricsHandlers(IEnumerable<Assembly> assemblies)
     {
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-        foreach (var assembly in assemblies.Where(x => !x.IsDynamic && File.Exists(x.Location)))
+        foreach (var assembly in assemblies)
         {
-            if (ExcludedAssemblyPrefixes.Any(prefix => 
-                    assembly.FullName.StartsWith(
-                        prefix, StringComparison.OrdinalIgnoreCase)))
+            if (assembly is null || assembly.IsDynamic)
             {
                 continue;
             }
 
-            // the location might not exist for some assemblies, so check that too
-            if (File.Exists(assembly.Location))
+            foreach (var type in assembly.GetTypes())
             {
-                foreach (var type in assembly.GetTypes())
+                if (typeof(IMongoDbClientMetricProvider).IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract)
                 {
-                    if (typeof(IMongoDbClientMetricProvider).IsAssignableFrom(type) && !type.IsInterface)
-                    {
-                        yield return type;
-                    }
+                    yield return type;
                 }
             }
         }
