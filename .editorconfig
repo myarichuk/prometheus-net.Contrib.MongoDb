@@ -1,0 +1,14 @@
+root = true
+
+[*.cs]
+dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.SA1202.severity = none
+dotnet_diagnostic.SA1401.severity = none
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1602.severity = none
+dotnet_diagnostic.SA1633.severity = none
+dotnet_diagnostic.SA1636.severity = none
+dotnet_diagnostic.CS1591.severity = none
+
+[tests/**/*.cs]
+dotnet_diagnostic.IDE0058.severity = silent

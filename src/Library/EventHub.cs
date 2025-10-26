@@ -9,31 +9,40 @@ internal class EventHub
 
     public void Publish<T>(T data)
     {
+        List<Delegate>? handlersCopy = null;
+
         _rwLock.EnterReadLock();
         try
         {
             if (_handlers.TryGetValue(typeof(T), out var handlers))
             {
-                foreach (var handler in handlers)
-                {
-                    if (handler is Action<T> action)
-                    {
-                        try
-                        {
-                            action(data);
-                        }
-                        catch (Exception ex)
-                        {
-                            // Handle the exception as you see fit
-                            Console.WriteLine($"An error occurred while publishing: {ex}");
-                        }
-                    }
-                }
+                handlersCopy = new List<Delegate>(handlers);
             }
         }
         finally
         {
             _rwLock.ExitReadLock();
+        }
+
+        if (handlersCopy is null)
+        {
+            return;
+        }
+
+        foreach (var handler in handlersCopy)
+        {
+            if (handler is Action<T> action)
+            {
+                try
+                {
+                    action(data);
+                }
+                catch (Exception ex)
+                {
+                    // Handle the exception as you see fit
+                    Console.WriteLine($"An error occurred while publishing: {ex}");
+                }
+            }
         }
     }
 

@@ -80,4 +80,36 @@ public class EventHubTests
         Assert.Null(receivedData1);
         Assert.Equal("Hello", receivedData2);
     }
+
+    [Fact]
+    public async Task PublishWorksWithConcurrentSubscribeUnsubscribe()
+    {
+        var hub = new EventHub();
+        var callCount = 0;
+
+        Action<string> permanentHandler = _ => Interlocked.Increment(ref callCount);
+        hub.Subscribe(permanentHandler);
+
+        var subscribeTask = Task.Run(() =>
+        {
+            Action<string> temp = _ => { };
+            for (int i = 0; i < 1000; i++)
+            {
+                hub.Subscribe(temp);
+                hub.Unsubscribe(temp);
+            }
+        });
+
+        var publishTask = Task.Run(() =>
+        {
+            for (int i = 0; i < 1000; i++)
+            {
+                hub.Publish("data");
+            }
+        });
+
+        await Task.WhenAll(subscribeTask, publishTask);
+
+        Assert.True(callCount > 0);
+    }
 }
