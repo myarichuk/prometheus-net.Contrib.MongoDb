@@ -1,8 +1,9 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization.IdGenerators;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Configuration;
+using MongoDB.Driver.Core.Connections;
 using MongoDB.Driver.Core.Events;
 using PrometheusNet.Contrib.MongoDb.Events;
 using PrometheusNet.MongoDb;
@@ -23,14 +24,68 @@ namespace PrometheusNet.Contrib.MongoDb;
 /// </summary>
 public static class MongoInstrumentation
 {
-    private class CommandInfo
-    {
-        public int RawSizeInBytes { get; set; }
+    /// <summary>
+    /// Minimal per-command correlation state. Deliberately small: entries live in
+    /// <see cref="Commands"/> only between the driver's start and end callbacks, and
+    /// orphans (commands whose end event never arrives) must stay cheap.
+    /// No command or reply payloads are retained here.
+    /// </summary>
+    private readonly record struct CommandCorrelation(
+        string Database,
+        string Collection,
+        MongoOperationType OperationType,
+        int RequestSizeInBytes,
+        long? CursorId);
 
-        public Dictionary<string, object> Command { get; set; } = default!;
-    }
+    // Keyed by (connection, request): request ids are scoped per connection, so a bare
+    // request id can collide across concurrent connections and miscorrelate metrics.
+    private static readonly ConcurrentDictionary<(ConnectionId Connection, int Request), CommandCorrelation> Commands = new();
 
-    private static readonly ConcurrentDictionary<int, CommandInfo> Commands = new();
+    // Driver-internal handshake / monitoring commands. The driver sends these on its own
+    // (SDAM heartbeats); they carry no user collection and would only add noise.
+    // Compared case-insensitively: the wire name varies ("hello", "isMaster", "ismaster").
+    private static readonly FrozenSet<string> IgnoredCommands =
+        FrozenSet.ToFrozenSet<string>(["hello", "ismaster"], StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, MongoOperationType> OperationTypes =
+        new Dictionary<string, MongoOperationType>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["insert"] = MongoOperationType.Insert,
+            ["delete"] = MongoOperationType.Delete,
+            ["find"] = MongoOperationType.Find,
+            ["update"] = MongoOperationType.Update,
+            ["aggregate"] = MongoOperationType.Aggregate,
+            ["count"] = MongoOperationType.Count,
+            ["distinct"] = MongoOperationType.Distinct,
+            ["mapreduce"] = MongoOperationType.MapReduce,
+            ["createindexes"] = MongoOperationType.CreateIndex,
+            ["dropindexes"] = MongoOperationType.DropIndex,
+            ["create"] = MongoOperationType.CreateCollection,
+            ["drop"] = MongoOperationType.DropCollection,
+            ["listcollections"] = MongoOperationType.ListCollections,
+            ["listindexes"] = MongoOperationType.ListIndexes,
+            ["findandmodify"] = MongoOperationType.FindAndModify,
+            ["bulkwrite"] = MongoOperationType.BulkWrite,
+            ["getmore"] = MongoOperationType.GetMore,
+            ["killcursors"] = MongoOperationType.KillCursors,
+            ["renameCollection"] = MongoOperationType.RenameCollection,
+            ["copydb"] = MongoOperationType.CopyDb,
+            ["collMod"] = MongoOperationType.CollMod,
+            ["dropDatabase"] = MongoOperationType.DropDatabase,
+            ["explain"] = MongoOperationType.Explain,
+            ["group"] = MongoOperationType.Group,
+            ["geoNear"] = MongoOperationType.GeoNear,
+            ["geoSearch"] = MongoOperationType.GeoSearch,
+            ["getLastError"] = MongoOperationType.GetLastError,
+            ["getPrevError"] = MongoOperationType.GetPrevError,
+            ["isMaster"] = MongoOperationType.IsMaster,
+            ["listDatabases"] = MongoOperationType.ListDatabases,
+            ["reIndex"] = MongoOperationType.ReIndex,
+            ["replSetGetStatus"] = MongoOperationType.ReplSetGetStatus,
+            ["serverStatus"] = MongoOperationType.ServerStatus,
+            ["shardConnPoolStats"] = MongoOperationType.ShardConnPoolStats,
+            ["whatsmyuri"] = MongoOperationType.WhatsMyUri,
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     static MongoInstrumentation()
     {
@@ -68,8 +123,9 @@ public static class MongoInstrumentation
     {
         var connectionEvent = new MongoConnectionClosedEvent
         {
-            Endpoint = @event.ServerId.EndPoint.ToString(),
+            Endpoint = @event.ServerId.EndPoint.ToString() ?? string.Empty,
             ClusterId = @event.ServerId.ClusterId.Value,
+            ConnectionId = @event.ConnectionId,
         };
 
         EventHub.Default.Publish(connectionEvent);
@@ -79,9 +135,10 @@ public static class MongoInstrumentation
     {
         var connectionEvent = new MongoConnectionFailedEvent
         {
-            Endpoint = @event.ServerId.EndPoint.ToString(),
+            Endpoint = @event.ServerId.EndPoint.ToString() ?? string.Empty,
             Exception = @event.Exception,
             ClusterId = @event.ServerId.ClusterId.Value,
+            ConnectionId = @event.ConnectionId,
         };
 
         EventHub.Default.Publish(connectionEvent);
@@ -91,8 +148,9 @@ public static class MongoInstrumentation
     {
         var connectionEvent = new MongoConnectionOpenedEvent
         {
-            Endpoint = @event.ServerId.EndPoint.ToString(),
+            Endpoint = @event.ServerId.EndPoint.ToString() ?? string.Empty,
             ClusterId = @event.ServerId.ClusterId.Value,
+            ConnectionId = @event.ConnectionId,
         };
 
         EventHub.Default.Publish(connectionEvent);
@@ -100,169 +158,220 @@ public static class MongoInstrumentation
 
     private static void OnCommandFailed(CommandFailedEvent e)
     {
-        if (e.CommandName == "isMaster")
-        {
-            return;
-        }
-        if (!Commands.TryRemove(e.RequestId, out var commandInfo))
+        if (IgnoredCommands.Contains(e.CommandName))
         {
             return;
         }
 
-        var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
-        if (targetCollection == string.Empty)
+        if (!Commands.TryRemove((e.ConnectionId, e.RequestId), out var correlation))
         {
             return;
         }
 
-        var commandEvent = new MongoCommandEventFailure
+        if (correlation.Collection.Length == 0)
         {
-            RequestId = e.RequestId,
-            OperationId = e.OperationId ?? 0,
-            OperationRawType = e.CommandName,
-            Command = commandInfo.Command,
-            RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
-            Duration = e.Duration,
-            Failure = e.Failure,
-            OperationType = GetOperationType(e.CommandName),
-            TargetDatabase = GetDatabase(commandInfo.Command),
-            TargetCollection = targetCollection,
-        };
-        EventHub.Default.Publish(commandEvent);
+            return;
+        }
+
+        // Note: the start command document is NOT retained. The driver recycles its
+        // buffers after sending, so touching it here would throw ObjectDisposedException.
+        // End events therefore carry scalars only; document views are start-event-only.
+        var commandEvent = EventPool<MongoCommandEventFailure>.Rent();
+        try
+        {
+            commandEvent.RequestId = e.RequestId;
+            commandEvent.OperationId = e.OperationId ?? 0;
+            commandEvent.OperationRawType = e.CommandName;
+            commandEvent.RawRequestSizeInBytes = correlation.RequestSizeInBytes;
+            commandEvent.Duration = e.Duration;
+            commandEvent.Failure = e.Failure;
+            commandEvent.OperationType = correlation.OperationType;
+            commandEvent.TargetDatabase = correlation.Database;
+            commandEvent.TargetCollection = correlation.Collection;
+            commandEvent.CursorId = correlation.CursorId;
+            EventHub.Default.Publish(commandEvent);
+        }
+        finally
+        {
+            EventPool<MongoCommandEventFailure>.Return(commandEvent);
+        }
     }
 
     private static void OnCommandSucceeded(CommandSucceededEvent e)
     {
-        if (e.CommandName == "isMaster")
-        {
-            return;
-        }
-        if (!Commands.TryRemove(e.RequestId, out var commandInfo))
+        if (IgnoredCommands.Contains(e.CommandName))
         {
             return;
         }
 
-        var targetCollection = GetCollection(e.CommandName, commandInfo.Command);
-        if (targetCollection == string.Empty)
+        if (!Commands.TryRemove((e.ConnectionId, e.RequestId), out var correlation))
         {
             return;
         }
 
-        var commandEvent = new MongoCommandEventSuccess
+        if (correlation.Collection.Length == 0)
         {
-            RequestId = e.RequestId,
-            OperationId = e.OperationId ?? 0,
-            OperationRawType = e.CommandName,
-            Command = commandInfo.Command,
-            RawRequestSizeInBytes = commandInfo.RawSizeInBytes,
-            Duration = e.Duration,
-            OperationType = GetOperationType(e.CommandName),
-            TargetDatabase = GetDatabase(commandInfo.Command),
-            TargetCollection = targetCollection,
-            RawReply = e.Reply.ToBson(),
-            Reply = e.Reply.ToDictionary(),
-            CursorId = long.TryParse(commandInfo.Command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
-        };
-        EventHub.Default.Publish(commandEvent);
+            return;
+        }
+
+        var reply = e.Reply;
+        var commandEvent = EventPool<MongoCommandEventSuccess>.Rent();
+        try
+        {
+            commandEvent.RequestId = e.RequestId;
+            commandEvent.OperationId = e.OperationId ?? 0;
+            commandEvent.OperationRawType = e.CommandName;
+            commandEvent.RawRequestSizeInBytes = correlation.RequestSizeInBytes;
+            commandEvent.Duration = e.Duration;
+            commandEvent.OperationType = correlation.OperationType;
+            commandEvent.TargetDatabase = correlation.Database;
+            commandEvent.TargetCollection = correlation.Collection;
+            commandEvent.CursorId = correlation.CursorId;
+            commandEvent.ReplyDocument = reply;
+
+            ExtractCursorInfo(reply, commandEvent);
+            EventHub.Default.Publish(commandEvent);
+        }
+        finally
+        {
+            EventPool<MongoCommandEventSuccess>.Return(commandEvent);
+        }
     }
 
     private static void OnCommandStarted(CommandStartedEvent e)
     {
-        if (e.CommandName == "isMaster")
+        if (IgnoredCommands.Contains(e.CommandName))
         {
             return;
         }
 
-        var command = e.Command.ToDictionary();
-        var rawCommandSizeInBytes = e.Command.ToBson()?.Length ?? 0;
-        Commands.TryAdd(
-            e.RequestId,
-            new CommandInfo
-            {
-                Command = command,
-                RawSizeInBytes = rawCommandSizeInBytes,
-            });
-
+        var command = e.Command;
+        var operationType = GetOperationType(e.CommandName);
         var targetCollection = GetCollection(e.CommandName, command);
-        if (targetCollection == string.Empty)
+        var database = e.DatabaseNamespace?.DatabaseName ?? GetDatabase(command);
+
+        // The exact wire size is observed by counting serialized bytes; no buffer
+        // is ever materialized (see BsonSizeCounter).
+        var rawCommandSizeInBytes = BsonSizeCounter.GetSizeInBytes(command);
+
+        var key = (e.ConnectionId, e.RequestId);
+        var correlation = new CommandCorrelation(
+            database,
+            targetCollection,
+            operationType,
+            rawCommandSizeInBytes,
+            GetCursorId(e.CommandName, command));
+
+        // Last-writer-wins: a stale orphan under the same key must never shadow a live command.
+        Commands[key] = correlation;
+
+        if (targetCollection.Length == 0)
         {
             return;
         }
 
-        var commandEvent = new MongoCommandEventStart
+        var commandEvent = EventPool<MongoCommandEventStart>.Rent();
+        try
         {
-            RequestId = e.RequestId,
-            OperationId = e.OperationId ?? 0,
-            OperationRawType = e.CommandName,
-            Command = command,
-            RawRequestSizeInBytes = rawCommandSizeInBytes,
-            Duration = null, // no duration yet
-            OperationType = GetOperationType(e.CommandName),
-            TargetDatabase = GetDatabase(command),
-            TargetCollection = targetCollection,
-            CursorId = long.TryParse(command[e.CommandName].ToString(), out var cursorId) ? cursorId : null,
+            commandEvent.RequestId = e.RequestId;
+            commandEvent.OperationId = e.OperationId ?? 0;
+            commandEvent.OperationRawType = e.CommandName;
+            commandEvent.CommandDocument = command;
+            commandEvent.RawRequestSizeInBytes = rawCommandSizeInBytes;
+            commandEvent.Duration = null; // no duration yet
+            commandEvent.OperationType = operationType;
+            commandEvent.TargetDatabase = database;
+            commandEvent.TargetCollection = targetCollection;
+            commandEvent.FilterDocument = GetFilterDocument(command);
+            commandEvent.CursorId = correlation.CursorId;
+
+            EventHub.Default.Publish(commandEvent);
+        }
+        finally
+        {
+            EventPool<MongoCommandEventStart>.Return(commandEvent);
+        }
+    }
+
+    private static MongoOperationType GetOperationType(string commandName) =>
+        OperationTypes.TryGetValue(commandName, out var operationType)
+            ? operationType
+            : MongoOperationType.Other;
+
+    private static string GetCollection(string commandName, BsonDocument command)
+    {
+        if (command.TryGetValue("collection", out var collection) &&
+            collection is BsonString collectionName)
+        {
+            return collectionName.AsString;
+        }
+
+        if (command.TryGetValue(commandName, out var collectionNameValue) &&
+            collectionNameValue is BsonString collectionNameFromCommand)
+        {
+            return collectionNameFromCommand.AsString;
+        }
+
+        return string.Empty;
+    }
+
+    private static long? GetCursorId(string commandName, BsonDocument command)
+    {
+        if (!command.TryGetValue(commandName, out var value))
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            BsonInt64 int64 => int64.AsInt64,
+            BsonInt32 int32 => int32.AsInt32,
+            BsonString text when long.TryParse(text.AsString, out var parsed) => parsed,
+            _ => null,
         };
-
-        EventHub.Default.Publish(commandEvent);
     }
 
-    // ReSharper disable once CyclomaticComplexity
-    private static MongoOperationType GetOperationType(string commandName)
-    {
-        if (string.Equals(commandName, "insert", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Insert;
-        if (string.Equals(commandName, "delete", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Delete;
-        if (string.Equals(commandName, "find", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Find;
-        if (string.Equals(commandName, "update", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Update;
-        if (string.Equals(commandName, "aggregate", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Aggregate;
-        if (string.Equals(commandName, "count", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Count;
-        if (string.Equals(commandName, "distinct", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Distinct;
-        if (string.Equals(commandName, "mapreduce", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.MapReduce;
-        if (string.Equals(commandName, "createindexes", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.CreateIndex;
-        if (string.Equals(commandName, "dropindexes", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.DropIndex;
-        if (string.Equals(commandName, "create", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.CreateCollection;
-        if (string.Equals(commandName, "drop", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.DropCollection;
-        if (string.Equals(commandName, "listcollections", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.ListCollections;
-        if (string.Equals(commandName, "listindexes", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.ListIndexes;
-        if (string.Equals(commandName, "findandmodify", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.FindAndModify;
-        if (string.Equals(commandName, "bulkwrite", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.BulkWrite;
-        if (string.Equals(commandName, "getmore", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.GetMore;
-        if (string.Equals(commandName, "killcursors", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.KillCursors;
-        if (string.Equals(commandName, "renameCollection", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.RenameCollection;
-        if (string.Equals(commandName, "copydb", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.CopyDb;
-        if (string.Equals(commandName, "collMod", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.CollMod;
-        if (string.Equals(commandName, "dropDatabase", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.DropDatabase;
-        if (string.Equals(commandName, "explain", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Explain;
-        if (string.Equals(commandName, "group", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.Group;
-        if (string.Equals(commandName, "geoNear", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.GeoNear;
-        if (string.Equals(commandName, "geoSearch", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.GeoSearch;
-        if (string.Equals(commandName, "getLastError", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.GetLastError;
-        if (string.Equals(commandName, "getPrevError", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.GetPrevError;
-        if (string.Equals(commandName, "isMaster", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.IsMaster;
-        if (string.Equals(commandName, "listDatabases", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.ListDatabases;
-        if (string.Equals(commandName, "reIndex", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.ReIndex;
-        if (string.Equals(commandName, "replSetGetStatus", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.ReplSetGetStatus;
-        if (string.Equals(commandName, "serverStatus", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.ServerStatus;
-        if (string.Equals(commandName, "shardConnPoolStats", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.ShardConnPoolStats;
-        if (string.Equals(commandName, "whatsmyuri", StringComparison.OrdinalIgnoreCase)) return MongoOperationType.WhatsMyUri;
+    private static BsonDocument? GetFilterDocument(BsonDocument command) =>
+        command.TryGetValue("filter", out var filter) && filter is BsonDocument filterDocument
+            ? filterDocument
+            : null;
 
-        return MongoOperationType.Other;
-    }
-
-    private static string GetCollection(string commandName, Dictionary<string, object> command)
+    private static void ExtractCursorInfo(BsonDocument? reply, MongoCommandEvent target)
     {
-        if (command.TryGetValue("collection", out var collectionAsObject))
+        if (reply is null || !reply.TryGetValue("cursor", out var cursorValue) ||
+            cursorValue is not BsonDocument cursor)
         {
-            return collectionAsObject?.ToString() ?? string.Empty;
+            return;
         }
 
-        if (!command.TryGetValue(commandName, out var collectionName))
+        if (cursor.TryGetValue("id", out var idValue))
         {
-            return string.Empty;
+            var replyCursorId = idValue switch
+            {
+                BsonInt64 int64 => (long?)int64.AsInt64,
+                BsonInt32 int32 => (long?)int32.AsInt32,
+                _ => null,
+            };
+            if (replyCursorId.HasValue)
+            {
+                target.IsFinalBatch = replyCursorId.Value == 0;
+                target.CursorId ??= replyCursorId;
+            }
         }
 
-        return collectionName?.ToString() ?? string.Empty;
+        if (cursor.TryGetValue("firstBatch", out var firstBatch) && firstBatch is BsonArray firstBatchArray)
+        {
+            target.IsFirstBatch = true;
+            target.BatchDocumentCount = firstBatchArray.Count;
+        }
+        else if (cursor.TryGetValue("nextBatch", out var nextBatch) && nextBatch is BsonArray nextBatchArray)
+        {
+            target.BatchDocumentCount = nextBatchArray.Count;
+        }
     }
 
-    private static string GetDatabase(Dictionary<string, object> command) =>
-        command.TryGetValue("$db", out var database) ? database.ToString() : "no database";
+    private static string GetDatabase(BsonDocument command) =>
+        command.TryGetValue("$db", out var database) && database is BsonString databaseName
+            ? databaseName.AsString
+            : "no database";
 }

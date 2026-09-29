@@ -1,4 +1,5 @@
 ﻿using Prometheus;
+using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
 // ReSharper disable ComplexConditionExpression
@@ -25,12 +26,20 @@ internal class CommandResponseSizeProvider : IMongoDbClientMetricProvider
     /// Handles the successful completion of a MongoDB command event.
     /// </summary>
     /// <param name="e">The event data.</param>
+    private readonly MetricChildCache<(string, string, string), Histogram.Child> _responseSizeCache =
+        new(key => CommandResponseSize.WithLabels(key.Item1, key.Item2, key.Item3));
+
     public void Handle(MongoCommandEventSuccess e)
     {
-        var replySize = e.RawReply.Length;
+        // Sized straight from the reply document: materializing RawReply into a
+        // byte[] here would duplicate result batches (potentially megabytes) that
+        // nobody else needs. RawReply stays available for custom providers.
+        var replySize = e.ReplyDocument is { } reply
+            ? BsonSizeCounter.GetSizeInBytes(reply)
+            : 0;
 
-        CommandResponseSize
-            .WithLabels(e.OperationRawType, e.TargetCollection, e.TargetDatabase)
+        _responseSizeCache
+            .Get((e.OperationRawType, e.TargetCollection, e.TargetDatabase))
             .Observe(replySize);
     }
 }

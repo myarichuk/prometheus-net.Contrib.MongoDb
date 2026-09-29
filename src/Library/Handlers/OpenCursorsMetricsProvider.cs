@@ -1,4 +1,5 @@
-﻿using Prometheus;
+﻿using System.Collections.Concurrent;
+using Prometheus;
 using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
@@ -15,6 +16,11 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers;
 /// </summary>
 internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
 {
+    // Operation ids of cursors we have counted as open. The gauge is only moved
+    // while an entry is added/removed here, so blind increments/decrements
+    // (and negative drift from failures of never-opened cursors) are impossible.
+    private readonly ConcurrentDictionary<long, byte> _openCursors = new();
+
     /// <summary>
     /// A Gauge metric to monitor the number of open MongoDB cursors.
     /// </summary>
@@ -30,6 +36,11 @@ internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
     /// Handles the successful completion event of a MongoDB command.
     /// </summary>
     /// <param name="e">Event data.</param>
+    private readonly MetricChildCache<(string, string), Gauge.Child> _openCursorsCache;
+
+    public OpenCursorsMetricsProvider() =>
+        _openCursorsCache = new(key => OpenCursors.WithLabels(key.Item1, key.Item2));
+
     public void Handle(MongoCommandEventSuccess e)
     {
         if (e.OperationType is
@@ -37,17 +48,17 @@ internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
             MongoOperationType.GetMore or
             MongoOperationType.Aggregate)
         {
-            if (IsFirstBatch(e.Reply))
+            if (e.IsFirstBatch && _openCursors.TryAdd(e.OperationId, 0))
             {
-                OpenCursors
-                    .WithLabels(e.TargetCollection, e.TargetDatabase)
+                _openCursorsCache
+                    .Get((e.TargetCollection, e.TargetDatabase))
                     .Inc();
             }
 
-            if (IsFinalBatch(e.Reply))
+            if (e.IsFinalBatch && _openCursors.TryRemove(e.OperationId, out _))
             {
-                OpenCursors
-                    .WithLabels(e.TargetCollection, e.TargetDatabase)
+                _openCursorsCache
+                    .Get((e.TargetCollection, e.TargetDatabase))
                     .Dec();
             }
         }
@@ -61,37 +72,17 @@ internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
     {
         // failure means cursor won't be open anymore
         // note: if it is a client-side error like timeout, it is possible the cursor will remain open until timeout
-        if (e.OperationType is MongoOperationType.Find or MongoOperationType.GetMore)
+        if (e.OperationType is
+            MongoOperationType.Find or
+            MongoOperationType.GetMore or
+            MongoOperationType.Aggregate)
         {
-            OpenCursors
-                .WithLabels(e.TargetCollection, e.TargetDatabase)
-                .Dec();
-        }
-    }
-
-    private static bool IsFinalBatch(Dictionary<string, object> commandReply)
-    {
-        if (commandReply.TryGetValue("cursor", out var cursorAsObject) &&
-            cursorAsObject is Dictionary<string, object> cursor)
-        {
-            if (cursor.TryGetValue("id", out var cursorIdAsObject) &&
-                cursorIdAsObject is long cursorId)
+            if (_openCursors.TryRemove(e.OperationId, out _))
             {
-                return cursorId == 0;
+                _openCursorsCache
+                    .Get((e.TargetCollection, e.TargetDatabase))
+                    .Dec();
             }
         }
-
-        return false;
-    }
-
-    private static bool IsFirstBatch(Dictionary<string, object> commandReply)
-    {
-        if (commandReply.TryGetValue("cursor", out var cursorAsObject) &&
-            cursorAsObject is Dictionary<string, object> cursor)
-        {
-            return cursor.ContainsKey("firstBatch");
-        }
-
-        return false;
     }
 }

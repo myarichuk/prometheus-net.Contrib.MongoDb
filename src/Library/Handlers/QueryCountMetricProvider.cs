@@ -22,6 +22,11 @@ internal class QueryCountMetricProvider : IMongoDbClientMetricProvider
             LabelNames = new[] { "query_type", "target_collection", "target_db" },
         });
 
+    private readonly MetricChildCache<(string, string, string), Counter.Child> _queryCountCache;
+
+    public QueryCountMetricProvider() =>
+        _queryCountCache = new(key => QueryCount.WithLabels(key.Item1, key.Item2, key.Item3));
+
     /// <summary>
     /// Handles the event triggered when a MongoDB command is executed.
     /// </summary>
@@ -33,8 +38,8 @@ internal class QueryCountMetricProvider : IMongoDbClientMetricProvider
     {
         if (e.OperationType is MongoOperationType.Find or MongoOperationType.Aggregate)
         {
-            QueryCount
-                .WithLabels(e.OperationRawType, e.TargetCollection, e.TargetDatabase)
+            _queryCountCache
+                .Get((e.OperationRawType, e.TargetCollection, e.TargetDatabase))
                 .Inc();
         }
     }

@@ -1,15 +1,19 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using Prometheus;
+using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
-    internal class OpenCursorDurationMetricProvider: IMongoDbClientMetricProvider
+    internal class OpenCursorDurationMetricProvider : IMongoDbClientMetricProvider
     {
-        private readonly ConcurrentDictionary<long, DateTime> _cursorStartTimes = new();
+        // Operation id -> monotonic start timestamp (see Stopwatch.GetTimestamp).
+        // DateTime.UtcNow is wall-clock time: coarse and non-monotonic, wrong tool for durations.
+        private readonly ConcurrentDictionary<long, long> _cursorStartTimestamps = new();
 
-        internal int CursorsOpen => _cursorStartTimes.Count;
+        internal int CursorsOpen => _cursorStartTimestamps.Count;
 
         /// <summary>
         /// Histogram metric for tracking the duration a MongoDB cursor is open.
@@ -25,53 +29,39 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
             });
 
 
+        private readonly MetricChildCache<(string, string), Histogram.Child> _openDurationCache;
+
+        public OpenCursorDurationMetricProvider() =>
+            _openDurationCache = new(key => OpenCursorDuration.WithLabels(key.Item1, key.Item2));
+
         public void Handle(MongoCommandEventSuccess e)
         {
-            if (IsFirstBatch(e.Reply))
+            if (e.IsFirstBatch)
             {
                 // Mark the start time for this cursor
-                _cursorStartTimes[e.OperationId] = DateTime.UtcNow;
+                _cursorStartTimestamps[e.OperationId] = Stopwatch.GetTimestamp();
             }
-            
-            if (IsFinalBatch(e.Reply))
+
+            if (e.IsFinalBatch)
             {
                 // Calculate duration and record it if this is the final batch
-                if (_cursorStartTimes.TryRemove(e.OperationId, out var startTime))
+                if (_cursorStartTimestamps.TryRemove(e.OperationId, out var startTimestamp))
                 {
-                    var duration = (DateTime.UtcNow - startTime).TotalSeconds;
+                    var duration = (Stopwatch.GetTimestamp() - startTimestamp) / (double)Stopwatch.Frequency;
 
-                    OpenCursorDuration
-                        .WithLabels(e.TargetCollection, e.TargetDatabase)
+                    _openDurationCache
+                        .Get((e.TargetCollection, e.TargetDatabase))
                         .Observe(duration);
 
                 }
             }
         }
 
-        private static bool IsFinalBatch(Dictionary<string, object> commandReply)
+        public void Handle(MongoCommandEventFailure e)
         {
-            if (commandReply.TryGetValue("cursor", out var cursorAsObject) &&
-                cursorAsObject is Dictionary<string, object> cursor)
-            {
-                if (cursor.TryGetValue("id", out var cursorIdAsObject) &&
-                    cursorIdAsObject is long cursorId)
-                {
-                    return cursorId == 0;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool IsFirstBatch(Dictionary<string, object> commandReply)
-        {
-            if (commandReply.TryGetValue("cursor", out var cursorAsObject) &&
-                cursorAsObject is Dictionary<string, object> cursor)
-            {
-                return cursor.ContainsKey("firstBatch");
-            }
-
-            return false;
+            // A failed cursor will never produce a final batch; drop the start time so the
+            // entry neither leaks nor corrupts a later, unrelated cursor on the same operation id.
+            _cursorStartTimestamps.TryRemove(e.OperationId, out _);
         }
     }
 }

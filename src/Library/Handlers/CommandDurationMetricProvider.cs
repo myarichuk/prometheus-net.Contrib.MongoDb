@@ -27,6 +27,11 @@ internal class CommandDurationMetricProvider : IMongoDbClientMetricProvider
             LabelNames = new[] { "command_type", "status", "target_collection", "target_db" },
         });
 
+    private readonly MetricChildCache<(string, string, string, string), Histogram.Child> _durationCache;
+
+    public CommandDurationMetricProvider() =>
+        _durationCache = new(key => CommandDurationHistogram.WithLabels(key.Item1, key.Item2, key.Item3, key.Item4));
+
     /// <summary>
     /// Handles the event triggered when a MongoDB command successfully completes.
     /// </summary>
@@ -35,8 +40,8 @@ internal class CommandDurationMetricProvider : IMongoDbClientMetricProvider
     /// This will record the duration of successful MongoDB commands in the histogram with appropriate labels.
     /// </remarks>
     public void Handle(MongoCommandEventSuccess e) =>
-        CommandDurationHistogram
-            .WithLabels(e.OperationRawType, SuccessStatus, e.TargetCollection, e.TargetDatabase)
+        _durationCache
+            .Get((e.OperationRawType, SuccessStatus, e.TargetCollection, e.TargetDatabase))
             .Observe(e.Duration.GetValueOrDefault().TotalSeconds);
 
     /// <summary>
@@ -47,7 +52,7 @@ internal class CommandDurationMetricProvider : IMongoDbClientMetricProvider
     /// This will record the duration of failed MongoDB commands in the histogram with appropriate labels.
     /// </remarks>
     public void Handle(MongoCommandEventFailure e) =>
-        CommandDurationHistogram
-            .WithLabels(e.OperationRawType, FailureStatus, e.TargetCollection, e.TargetDatabase)
+        _durationCache
+            .Get((e.OperationRawType, FailureStatus, e.TargetCollection, e.TargetDatabase))
             .Observe(e.Duration.GetValueOrDefault().TotalSeconds);
 }

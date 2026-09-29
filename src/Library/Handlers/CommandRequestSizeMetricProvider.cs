@@ -1,11 +1,12 @@
-﻿using Prometheus;
+using Prometheus;
+using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
 // ReSharper disable ComplexConditionExpression
 
 namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
-    internal class CommandRequestSizeMetricProvider: IMongoDbClientMetricProvider
+    internal class CommandRequestSizeMetricProvider : IMongoDbClientMetricProvider
     {
         /// <summary>
         /// A histogram metric that tracks the size (in bytes) of MongoDB commands being sent.
@@ -15,7 +16,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
         /// - command_type: The type of MongoDB operation (e.g., find, update, etc.)
         /// - target_collection: The MongoDB collection targeted by the operation
         /// - target_db: The MongoDB database targeted by the operation
-        /// 
+        ///
         /// The bucket sizes are in bytes and are chosen to cover a range of typical MongoDB command sizes.
         /// </remarks>
         public static readonly Histogram CommandRequestSize = Metrics.CreateHistogram(
@@ -27,6 +28,9 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
                 Buckets = new[] { 512.0, 1024.0, 100.0 * 1024, 1024.0 * 1024.0 },
             });
 
+        private readonly MetricChildCache<(string, string, string), Histogram.Child> _requestSizeCache =
+            new(key => CommandRequestSize.WithLabels(key.Item1, key.Item2, key.Item3));
+
         /// <summary>
         /// Handles event when a MongoDB command starts.
         /// </summary>
@@ -36,8 +40,8 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
         /// </remarks>
         public void Handle(MongoCommandEventStart @event)
         {
-            CommandRequestSize
-                .WithLabels(@event.OperationRawType, @event.TargetCollection, @event.TargetDatabase)
+            _requestSizeCache
+                .Get((@event.OperationRawType, @event.TargetCollection, @event.TargetDatabase))
                 .Observe(@event.RawRequestSizeInBytes);
         }
     }
