@@ -1,8 +1,7 @@
-﻿using EphemeralMongo;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using Prometheus;
 using PrometheusNet.MongoDb.Handlers;
-using System.Reflection;
 
 namespace PrometheusNet.MongoDb.Tests
 {
@@ -48,21 +47,16 @@ namespace PrometheusNet.MongoDb.Tests
         {
             const int depth = 5000;
 
-            if (!MetricProviderRegistrar.TryGetProvider<QueryFilterSizeMetricProvider>(out var provider) || provider == null)
-            {
-                throw new Exception($"Failed to fetch an instance of {nameof(QueryFilterSizeMetricProvider)}");
-            }
-
-            var filter = new Dictionary<string, object>();
+            var filter = new BsonDocument();
             var current = filter;
             var expectedFilterSize = 0;
 
             for (var i = 0; i < depth; i++)
             {
-                var nestedFilter = new Dictionary<string, object>();
                 current[$"value_{i}"] = i;
                 expectedFilterSize++;
 
+                var nestedFilter = new BsonDocument();
                 current[$"nested_{i}"] = nestedFilter;
                 current = nestedFilter;
             }
@@ -70,21 +64,7 @@ namespace PrometheusNet.MongoDb.Tests
             current["terminal"] = "done";
             expectedFilterSize++;
 
-            var calculateFilterSizeMethod = typeof(QueryFilterSizeMetricProvider).GetMethod(
-                "CalculateFilterSize",
-                BindingFlags.Instance | BindingFlags.NonPublic,
-                binder: null,
-                types: new[] { typeof(Dictionary<string, object>) },
-                modifiers: null);
-
-            if (calculateFilterSizeMethod == null)
-            {
-                throw new MissingMethodException(
-                    typeof(QueryFilterSizeMetricProvider).FullName,
-                    "CalculateFilterSize(Dictionary<string, object>)");
-            }
-
-            var actualFilterSize = (int)calculateFilterSizeMethod.Invoke(provider, new object[] { filter })!;
+            var actualFilterSize = QueryFilterSizeMetricProvider.CalculateFilterSize(filter);
 
             Assert.Equal(expectedFilterSize, actualFilterSize);
         }

@@ -1,9 +1,9 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.MongoDb.Tests
 {
-    public class QueryCountProviderTests
+    [Collection("NonConcurrentCollection")]    public class QueryCountProviderTests
     {
         [Theory]
         [InlineData(1)]
