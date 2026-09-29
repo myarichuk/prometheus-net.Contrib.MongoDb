@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v4.0.4.0] - 2026-09-29
+### :boom: BREAKING CHANGES
+- due to [`9b6e1cf`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/9b6e1cfaba7b8de08dbfc3208168ef02c9b48466) - target net8.0 and MongoDB Driver 3 *(commit by [@myarichuk](https://github.com/myarichuk))*:
+
+  target net8.0 and MongoDB Driver 3
+
+
+### :sparkles: New Features
+- [`9b6e1cf`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/9b6e1cfaba7b8de08dbfc3208168ef02c9b48466) - target net8.0 and MongoDB Driver 3 *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :zap: Performance Improvements
+- [`6462cff`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/6462cff377e3af8e571b617b07dcea5a18fd04da) - zero-copy instrumentation with pooled, cached hot path *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :white_check_mark: Tests
+- [`62f5224`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/62f522430b53da487ecfe0395f5381bf96742b3a) - run suite on Mongo.Fakes.Server, drop EphemeralMongo *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`7d1be14`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/7d1be14c4759b3847f9fff39c7ef33d879dd6dea) - add BenchmarkDotNet load harness for instrumentation overhead *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v3.0.26.0] - 2025-10-17
 ### :wrench: Chores
 - [`62323e6`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/62323e647d88e9df7bd5ac807bca37c9c2e620b0) - **deps**: bump stefanzweifel/git-auto-commit-action from 5 to 7 *(commit by [@dependabot[bot]](https://github.com/apps/dependabot))*
@@ -236,3 +254,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v3.0.2.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.0.0...v3.0.2.0
 [v3.0.9.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.2.0...v3.0.9.0
 [v3.0.26.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.24.0...v3.0.26.0
+[v4.0.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.26.0...v4.0.4.0
