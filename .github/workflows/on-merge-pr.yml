@@ -24,7 +24,7 @@ jobs:
       - name: Setup .NET tooling
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: 8.0.x
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v0.10.2
         with:
@@ -68,7 +68,7 @@ jobs:
       - name: Setup .NET tooling
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: 8.0.x
       - uses: actions/download-artifact@v4
         with:
           name: nupkg
@@ -83,7 +83,7 @@ jobs:
       - name: Setup .NET tooling
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: 8.0.x
       - name: Git Checkout
         uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
