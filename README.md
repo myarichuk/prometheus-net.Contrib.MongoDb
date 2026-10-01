@@ -10,6 +10,7 @@ metrics — no sidecar process, no server polling.
 - [Installation](#installation)
 - [Usage](#usage)
 - [Metrics exposed](#metrics-exposed)
+- [Grafana dashboard](#grafana-dashboard)
 - [Performance](#performance)
   - [Benchmarks](#benchmarks)
   - [Memory usage](#memory-usage)
@@ -95,6 +96,14 @@ settings = settings.InstrumentForPrometheus(cluster =>
 > **Note:** Query filter size recursively counts leaf clauses/items in the filter, which is a
 > useful proxy for query complexity — but actual performance still depends on indexes (or their
 > absence).
+
+## Grafana dashboard
+
+A ready-made dashboard covering all the metrics above (command rate/latency/errors, queries,
+payload sizes, cursors and connections) is in
+[`grafana/mongodb-dashboard.json`](grafana/mongodb-dashboard.json). In Grafana use
+**Dashboards → Import**, upload the file and pick your Prometheus data source. The `db`,
+`collection` and `cluster` variables filter every panel.
 
 ## Performance
 
