@@ -246,8 +246,17 @@ public static class MongoInstrumentation
         }
 
         var command = e.Command;
-        var operationType = GetOperationType(e.CommandName);
         var targetCollection = GetCollection(e.CommandName, command);
+
+        // Commands without a target collection (ping, auth, endSessions, ...) publish nothing,
+        // and their end events bail out on the same check, so they need neither a correlation
+        // entry nor the (O(command size)) serialization below.
+        if (targetCollection.Length == 0)
+        {
+            return;
+        }
+
+        var operationType = GetOperationType(e.CommandName);
         var database = e.DatabaseNamespace?.DatabaseName ?? GetDatabase(command);
 
         // The exact wire size is observed by counting serialized bytes; no buffer
@@ -264,11 +273,6 @@ public static class MongoInstrumentation
 
         // Last-writer-wins: a stale orphan under the same key must never shadow a live command.
         Commands[key] = correlation;
-
-        if (targetCollection.Length == 0)
-        {
-            return;
-        }
 
         var commandEvent = EventPool<MongoCommandEventStart>.Rent();
         try
@@ -315,21 +319,19 @@ public static class MongoInstrumentation
         return string.Empty;
     }
 
-    private static long? GetCursorId(string commandName, BsonDocument command)
-    {
-        if (!command.TryGetValue(commandName, out var value))
-        {
-            return null;
-        }
-
-        return value switch
-        {
-            BsonInt64 int64 => int64.AsInt64,
-            BsonInt32 int32 => int32.AsInt32,
-            BsonString text when long.TryParse(text.AsString, out var parsed) => parsed,
-            _ => null,
-        };
-    }
+    // Only getMore carries a cursor id as its command value (`getMore: <int64>`). For every other
+    // command that value is the collection name, which must never be read as an id.
+    internal static long? GetCursorId(string commandName, BsonDocument command) =>
+        OperationTypes.TryGetValue(commandName, out var type) &&
+        type == MongoOperationType.GetMore &&
+        command.TryGetValue(commandName, out var value)
+            ? value switch
+            {
+                BsonInt64 int64 => int64.AsInt64,
+                BsonInt32 int32 => int32.AsInt32,
+                _ => null,
+            }
+            : null;
 
     private static BsonDocument? GetFilterDocument(BsonDocument command) =>
         command.TryGetValue("filter", out var filter) && filter is BsonDocument filterDocument

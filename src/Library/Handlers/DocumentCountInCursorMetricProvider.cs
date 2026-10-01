@@ -44,6 +44,19 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
         /// <param name="e">The MongoDB command event.</param>
         public void Handle(MongoCommandEventSuccess e)
         {
+            // killCursors closes a cursor that was abandoned before its final batch.
+            if (e.OperationType is MongoOperationType.KillCursors)
+            {
+                if (_documentCountsPerOperationId.TryRemove(e.OperationId, out var killedCount))
+                {
+                    _documentCountCache
+                        .Get((e.TargetCollection, e.TargetDatabase))
+                        .Observe(killedCount);
+                }
+
+                return;
+            }
+
             if (e.BatchDocumentCount is { } documentCount)
             {
                 _documentCountsPerOperationId.AddOrUpdate(

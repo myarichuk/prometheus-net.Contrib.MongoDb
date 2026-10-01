@@ -43,6 +43,19 @@ internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
 
     public void Handle(MongoCommandEventSuccess e)
     {
+        // killCursors closes a cursor that was abandoned before its final batch.
+        if (e.OperationType is MongoOperationType.KillCursors)
+        {
+            if (_openCursors.TryRemove(e.OperationId, out _))
+            {
+                _openCursorsCache
+                    .Get((e.TargetCollection, e.TargetDatabase))
+                    .Dec();
+            }
+
+            return;
+        }
+
         if (e.OperationType is
             MongoOperationType.Find or
             MongoOperationType.GetMore or

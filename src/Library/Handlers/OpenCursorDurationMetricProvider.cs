@@ -36,6 +36,13 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
 
         public void Handle(MongoCommandEventSuccess e)
         {
+            // killCursors closes a cursor that was abandoned before its final batch.
+            if (e.OperationType is MongoOperationType.KillCursors)
+            {
+                ObserveAndRemove(e);
+                return;
+            }
+
             if (e.IsFirstBatch)
             {
                 // Mark the start time for this cursor
@@ -45,15 +52,19 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
             if (e.IsFinalBatch)
             {
                 // Calculate duration and record it if this is the final batch
-                if (_cursorStartTimestamps.TryRemove(e.OperationId, out var startTimestamp))
-                {
-                    var duration = (Stopwatch.GetTimestamp() - startTimestamp) / (double)Stopwatch.Frequency;
+                ObserveAndRemove(e);
+            }
+        }
 
-                    _openDurationCache
-                        .Get((e.TargetCollection, e.TargetDatabase))
-                        .Observe(duration);
+        private void ObserveAndRemove(MongoCommandEventSuccess e)
+        {
+            if (_cursorStartTimestamps.TryRemove(e.OperationId, out var startTimestamp))
+            {
+                var duration = (Stopwatch.GetTimestamp() - startTimestamp) / (double)Stopwatch.Frequency;
 
-                }
+                _openDurationCache
+                    .Get((e.TargetCollection, e.TargetDatabase))
+                    .Observe(duration);
             }
         }
 
