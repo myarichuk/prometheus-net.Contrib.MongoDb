@@ -25,6 +25,7 @@ public class PoolingTests
         first.FilterDocument = new BsonDocument("a", 1);
         first.CommandDocument = new BsonDocument("find", "coll");
         first.CursorId = 9;
+        first.KilledCursorIds = new List<long> { 11, 22 };
         first.Duration = TimeSpan.FromSeconds(1);
         first.BatchDocumentCount = 5;
         first.IsFirstBatch = true;
@@ -44,6 +45,7 @@ public class PoolingTests
         Assert.Null(second.FilterDocument);
         Assert.Null(second.CommandDocument);
         Assert.Null(second.CursorId);
+        Assert.Null(second.KilledCursorIds);
         Assert.Null(second.Duration);
         Assert.Null(second.BatchDocumentCount);
         Assert.False(second.IsFirstBatch);

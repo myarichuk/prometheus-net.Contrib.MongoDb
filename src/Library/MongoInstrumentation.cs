@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -286,9 +286,9 @@ public static class MongoInstrumentation
             commandEvent.OperationType = operationType;
             commandEvent.TargetDatabase = database;
             commandEvent.TargetCollection = targetCollection;
-            commandEvent.FilterDocument = GetFilterDocument(command);
+            commandEvent.FilterDocument = GetFilterDocument(command, operationType);
             commandEvent.CursorId = correlation.CursorId;
-
+            commandEvent.KilledCursorIds = GetKilledCursorIds(e.CommandName, command);
             EventHub.Default.Publish(commandEvent);
         }
         finally
@@ -302,12 +302,35 @@ public static class MongoInstrumentation
             ? operationType
             : MongoOperationType.Other;
 
-    private static string GetCollection(string commandName, BsonDocument command)
+    internal static string GetCollection(string commandName, BsonDocument command)
     {
         if (command.TryGetValue("collection", out var collection) &&
             collection is BsonString collectionName)
         {
             return collectionName.AsString;
+        }
+
+        // Bulk writes carry no top-level collection: the command value is just `1`
+        // (`{ bulkWrite: 1, nsInfo: [{ ns: "db.coll" }], ... }`). Attribute the command
+        // to the first listed namespace; multi-namespace bulks are rare and share one
+        // request-size observation, so the first entry is the honest label.
+        // The namespace is "db.collection" with the split on the FIRST dot, because
+        // collection names may legally contain dots themselves.
+        if (string.Equals(commandName, "bulkWrite", StringComparison.OrdinalIgnoreCase) &&
+            command.TryGetValue("nsInfo", out var nsInfo) &&
+            nsInfo is BsonArray { Count: > 0 } namespaces &&
+            namespaces[0] is BsonDocument firstNamespace &&
+            firstNamespace.TryGetValue("ns", out var ns) &&
+            ns is BsonString nsString)
+        {
+            var namespaceValue = nsString.AsString;
+            var dot = namespaceValue.IndexOf('.');
+            if (dot >= 0 && dot < namespaceValue.Length - 1)
+            {
+                return namespaceValue[(dot + 1)..];
+            }
+
+            return string.Empty;
         }
 
         if (command.TryGetValue(commandName, out var collectionNameValue) &&
@@ -333,10 +356,58 @@ public static class MongoInstrumentation
             }
             : null;
 
-    private static BsonDocument? GetFilterDocument(BsonDocument command) =>
-        command.TryGetValue("filter", out var filter) && filter is BsonDocument filterDocument
-            ? filterDocument
-            : null;
+    // Cursor ids named by a killCursors command (`{ killCursors: "coll", cursors: [...] }`).
+    // A killCursors is a separate driver operation with its own operation id, so cursor
+    // providers match it to the abandoned cursor by these ids, never by operation id.
+    internal static List<long>? GetKilledCursorIds(string commandName, BsonDocument command)
+    {
+        if (!OperationTypes.TryGetValue(commandName, out var type) ||
+            type != MongoOperationType.KillCursors ||
+            !command.TryGetValue("cursors", out var cursors) ||
+            cursors is not BsonArray cursorArray ||
+            cursorArray.Count == 0)
+        {
+            return null;
+        }
+
+        List<long>? ids = null;
+        foreach (var cursor in cursorArray)
+        {
+            long id = cursor switch
+            {
+                BsonInt64 int64 => int64.AsInt64,
+                BsonInt32 int32 => int32.AsInt32,
+                _ => 0,
+            };
+
+            if (id != 0)
+            {
+                ids ??= new List<long>(cursorArray.Count);
+                ids.Add(id);
+            }
+        }
+
+        return ids;
+    }
+
+    internal static BsonDocument? GetFilterDocument(BsonDocument command, MongoOperationType operationType)
+    {
+        if (command.TryGetValue("filter", out var filter) && filter is BsonDocument filterDocument)
+        {
+            return filterDocument;
+        }
+
+        // Aggregates carry no "filter": their complexity lives in "pipeline".
+        // Wrap the array (stages are referenced, never copied) so the same
+        // leaf-counting walk measures stage clauses with identical semantics.
+        if (operationType == MongoOperationType.Aggregate &&
+            command.TryGetValue("pipeline", out var pipeline) && pipeline is BsonArray pipelineArray)
+        {
+            return new BsonDocument("pipeline", pipelineArray);
+        }
+
+        return null;
+    }
 
     private static void ExtractCursorInfo(BsonDocument? reply, MongoCommandEvent target)
     {

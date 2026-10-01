@@ -9,8 +9,10 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
     internal class OpenCursorDurationMetricProvider : IMongoDbClientMetricProvider
     {
-        // Operation id -> monotonic start timestamp (see Stopwatch.GetTimestamp).
+        // Cursor key -> monotonic start timestamp (see Stopwatch.GetTimestamp).
         // DateTime.UtcNow is wall-clock time: coarse and non-monotonic, wrong tool for durations.
+        // Keys are MongoCommandEvent.CursorKey: cursor id while open, so a killCursors
+        // (its own operation) still matches the cursor it closes.
         private readonly ConcurrentDictionary<long, long> _cursorStartTimestamps = new();
 
         internal int CursorsOpen => _cursorStartTimestamps.Count;
@@ -36,29 +38,38 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
 
         public void Handle(MongoCommandEventSuccess e)
         {
-            // killCursors closes a cursor that was abandoned before its final batch.
+            // killCursors closes cursors abandoned before their final batch. It runs as its
+            // own driver operation, so the cursors it closes are matched by id, never by
+            // operation id (which belongs to the kill command itself).
             if (e.OperationType is MongoOperationType.KillCursors)
             {
-                ObserveAndRemove(e);
+                if (e.KilledCursorIds is { } killedCursorIds)
+                {
+                    foreach (var cursorId in killedCursorIds)
+                    {
+                        ObserveAndRemove(e, cursorId);
+                    }
+                }
+
                 return;
             }
 
             if (e.IsFirstBatch)
             {
                 // Mark the start time for this cursor
-                _cursorStartTimestamps[e.OperationId] = Stopwatch.GetTimestamp();
+                _cursorStartTimestamps[e.CursorKey] = Stopwatch.GetTimestamp();
             }
 
             if (e.IsFinalBatch)
             {
                 // Calculate duration and record it if this is the final batch
-                ObserveAndRemove(e);
+                ObserveAndRemove(e, e.CursorKey);
             }
         }
 
-        private void ObserveAndRemove(MongoCommandEventSuccess e)
+        private void ObserveAndRemove(MongoCommandEventSuccess e, long key)
         {
-            if (_cursorStartTimestamps.TryRemove(e.OperationId, out var startTimestamp))
+            if (_cursorStartTimestamps.TryRemove(key, out var startTimestamp))
             {
                 var duration = (Stopwatch.GetTimestamp() - startTimestamp) / (double)Stopwatch.Frequency;
 
@@ -71,8 +82,8 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
         public void Handle(MongoCommandEventFailure e)
         {
             // A failed cursor will never produce a final batch; drop the start time so the
-            // entry neither leaks nor corrupts a later, unrelated cursor on the same operation id.
-            _cursorStartTimestamps.TryRemove(e.OperationId, out _);
+            // entry neither leaks nor corrupts a later, unrelated cursor on the same key.
+            _cursorStartTimestamps.TryRemove(e.CursorKey, out _);
         }
     }
 }

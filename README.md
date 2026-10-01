@@ -93,7 +93,7 @@ settings = settings.InstrumentForPrometheus(cluster =>
 > an `operationId` (e.g. `find` followed by `getMore` calls paging through results). Cursor
 > document counts are aggregated per operation before being published, so cardinality stays flat.
 
-> **Note:** Query filter size recursively counts leaf clauses/items in the filter, which is a
+> **Note:** Query filter size recursively counts leaf clauses/items in the filter (or the pipeline stages for `aggregate`), which is a
 > useful proxy for query complexity — but actual performance still depends on indexes (or their
 > absence).
 

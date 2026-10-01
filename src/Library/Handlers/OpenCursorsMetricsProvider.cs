@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Prometheus;
 using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
@@ -16,9 +16,10 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers;
 /// </summary>
 internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
 {
-    // Operation ids of cursors we have counted as open. The gauge is only moved
-    // while an entry is added/removed here, so blind increments/decrements
-    // (and negative drift from failures of never-opened cursors) are impossible.
+    // Keys of cursors we have counted as open (see MongoCommandEvent.CursorKey).
+    // The gauge is only moved while an entry is added/removed here, so blind
+    // increments/decrements (and negative drift from failures of never-opened
+    // cursors) are impossible.
     private readonly ConcurrentDictionary<long, byte> _openCursors = new();
 
     /// <summary>
@@ -43,14 +44,22 @@ internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
 
     public void Handle(MongoCommandEventSuccess e)
     {
-        // killCursors closes a cursor that was abandoned before its final batch.
+        // killCursors closes cursors abandoned before their final batch. It runs as its
+        // own driver operation, so the cursors it closes are matched by id, never by
+        // operation id (which belongs to the kill command itself).
         if (e.OperationType is MongoOperationType.KillCursors)
         {
-            if (_openCursors.TryRemove(e.OperationId, out _))
+            if (e.KilledCursorIds is { } killedCursorIds)
             {
-                _openCursorsCache
-                    .Get((e.TargetCollection, e.TargetDatabase))
-                    .Dec();
+                foreach (var cursorId in killedCursorIds)
+                {
+                    if (_openCursors.TryRemove(cursorId, out _))
+                    {
+                        _openCursorsCache
+                            .Get((e.TargetCollection, e.TargetDatabase))
+                            .Dec();
+                    }
+                }
             }
 
             return;
@@ -61,14 +70,14 @@ internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
             MongoOperationType.GetMore or
             MongoOperationType.Aggregate)
         {
-            if (e.IsFirstBatch && _openCursors.TryAdd(e.OperationId, 0))
+            if (e.IsFirstBatch && _openCursors.TryAdd(e.CursorKey, 0))
             {
                 _openCursorsCache
                     .Get((e.TargetCollection, e.TargetDatabase))
                     .Inc();
             }
 
-            if (e.IsFinalBatch && _openCursors.TryRemove(e.OperationId, out _))
+            if (e.IsFinalBatch && _openCursors.TryRemove(e.CursorKey, out _))
             {
                 _openCursorsCache
                     .Get((e.TargetCollection, e.TargetDatabase))
@@ -90,7 +99,7 @@ internal class OpenCursorsMetricsProvider : IMongoDbClientMetricProvider
             MongoOperationType.GetMore or
             MongoOperationType.Aggregate)
         {
-            if (_openCursors.TryRemove(e.OperationId, out _))
+            if (_openCursors.TryRemove(e.CursorKey, out _))
             {
                 _openCursorsCache
                     .Get((e.TargetCollection, e.TargetDatabase))

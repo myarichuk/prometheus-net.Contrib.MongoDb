@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using Mongo.Fakes.Server;
 using PrometheusNet.Contrib.MongoDb;
@@ -132,6 +132,35 @@ public class FakeServerInstrumentationTests : IAsyncLifetime
         Assert.Contains(
             $"mongodb_client_cursor_document_count_sum{{target_collection=\"{collection}\",target_db=\"{Database}\"}} 2",
             exposition);
+    }
+
+    [Fact]
+    public async Task Aggregate_records_pipeline_filter_size()
+    {
+        const string collection = "fake_aggregate_filter_metrics";
+        var coll = Collection(collection);
+
+        if (!MetricProviderRegistrar.TryGetProvider<QueryFilterSizeMetricProvider>(out var filterSizeProvider) ||
+            filterSizeProvider is null)
+        {
+            throw new Exception("Failed to fetch metric providers");
+        }
+
+        await coll.InsertManyAsync(
+        [
+            new BsonDocument { { "i", 1 } },
+            new BsonDocument { { "i", 2 } },
+            new BsonDocument { { "i", 3 } },
+        ]);
+
+        var before = filterSizeProvider.QueryFilterSize.WithLabels("aggregate", collection, Database).Sum;
+
+        // Aggregates carry no "filter": their complexity is measured from the pipeline
+        // ($gte bound and $limit value are the two leaf clauses here).
+        var found = await coll.Aggregate().Match(Builders<BsonDocument>.Filter.Gte("i", 1)).Limit(3).ToListAsync();
+
+        Assert.Equal(3, found.Count);
+        Assert.Equal(2, filterSizeProvider.QueryFilterSize.WithLabels("aggregate", collection, Database).Sum - before);
     }
 
     [Fact]

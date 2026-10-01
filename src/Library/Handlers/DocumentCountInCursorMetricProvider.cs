@@ -8,7 +8,10 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
 {
     internal class DocumentCountInCursorMetricProvider : IMongoDbClientMetricProvider
     {
-        private readonly ConcurrentDictionary<long, int> _documentCountsPerOperationId = new();
+        // Accumulated batch document counts per cursor key (see MongoCommandEvent.CursorKey).
+        // Keying by cursor id (not operation id) keeps find/getMore batches of one cursor
+        // together and still matches a killCursors, which runs as its own operation.
+        private readonly ConcurrentDictionary<long, int> _documentCountsPerCursor = new();
 
         /// <summary>
         /// Summary metric for tracking the number of documents fetched per cursor batch.
@@ -28,7 +31,7 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
 
         public void Handle(MongoCommandEventFailure e)
         {
-            if (_documentCountsPerOperationId.TryRemove(e.OperationId, out var documentCount))
+            if (_documentCountsPerCursor.TryRemove(e.CursorKey, out var documentCount))
             {
                 _documentCountCache
                     .Get((e.TargetCollection, e.TargetDatabase))
@@ -44,32 +47,53 @@ namespace PrometheusNet.Contrib.MongoDb.Handlers
         /// <param name="e">The MongoDB command event.</param>
         public void Handle(MongoCommandEventSuccess e)
         {
-            // killCursors closes a cursor that was abandoned before its final batch.
+            // killCursors closes cursors abandoned before their final batch: publish
+            // whatever was accumulated for each killed cursor. It runs as its own driver
+            // operation, so the cursors are matched by id, never by operation id.
             if (e.OperationType is MongoOperationType.KillCursors)
             {
-                if (_documentCountsPerOperationId.TryRemove(e.OperationId, out var killedCount))
+                if (e.KilledCursorIds is { } killedCursorIds)
                 {
-                    _documentCountCache
-                        .Get((e.TargetCollection, e.TargetDatabase))
-                        .Observe(killedCount);
+                    foreach (var cursorId in killedCursorIds)
+                    {
+                        if (_documentCountsPerCursor.TryRemove(cursorId, out var killedCount))
+                        {
+                            _documentCountCache
+                                .Get((e.TargetCollection, e.TargetDatabase))
+                                .Observe(killedCount);
+                        }
+                    }
                 }
 
                 return;
             }
 
-            if (e.BatchDocumentCount is { } documentCount)
+            if (e.IsFinalBatch)
             {
-                _documentCountsPerOperationId.AddOrUpdate(
-                    e.OperationId,
-                    documentCount,
-                    (_, existing) => existing + documentCount);
-            }
+                // Closing batch (id 0, or a cursor that never stayed open): publish this
+                // batch plus anything accumulated under the same key. Combining here
+                // instead of accumulate-then-remove keeps single-batch cursors exact even
+                // when many close concurrently.
+                var total = e.BatchDocumentCount ?? 0;
+                if (_documentCountsPerCursor.TryRemove(e.CursorKey, out var accumulated))
+                {
+                    total += accumulated;
+                }
+                else if (e.BatchDocumentCount is null)
+                {
+                    return;
+                }
 
-            if (e.IsFinalBatch && _documentCountsPerOperationId.TryRemove(e.OperationId, out documentCount))
-            {
                 _documentCountCache
                     .Get((e.TargetCollection, e.TargetDatabase))
-                    .Observe(documentCount);
+                    .Observe(total);
+            }
+            else if (e.BatchDocumentCount is { } documentCount)
+            {
+                _documentCountsPerCursor.AddOrUpdate(
+                    e.CursorKey,
+                    documentCount,
+                    (_, existing) => existing + documentCount);
             }
         }
     }

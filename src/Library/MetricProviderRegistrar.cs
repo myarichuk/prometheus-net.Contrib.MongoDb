@@ -8,10 +8,15 @@ using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.MongoDb;
 
-internal static class MetricProviderRegistrar
+/// <summary>
+/// Registration point for <see cref="IMongoDbClientMetricProvider"/> implementations.
+/// Built-in providers are registered automatically on first use. Custom providers
+/// (including ones from other assemblies) can be plugged in with
+/// <see cref="RegisterAll(System.Collections.Generic.IEnumerable{System.Reflection.Assembly})"/>
+/// or <see cref="Register(IMongoDbClientMetricProvider)"/>.
+/// </summary>
+public static class MetricProviderRegistrar
 {
-    private static bool _isRegistered;
-
     // just in case, for testing mostly
     static MetricProviderRegistrar() => RegisterAll();
 
@@ -53,14 +58,19 @@ internal static class MetricProviderRegistrar
     public static void ReplaceForTests<TProvider>(TProvider newProvider)
         where TProvider : class, IMongoDbClientMetricProvider
     {
-        if (MetricsProviders.TryRemove(typeof(TProvider), out var removedProvider))
-        {
-            UnsubscribeProvider(removedProvider);
-        }
+        ArgumentNullException.ThrowIfNull(newProvider);
 
-        if (MetricsProviders.TryAdd(typeof(TProvider), newProvider))
+        lock (MetricsProviders)
         {
-            SubscribeProvider(newProvider);
+            if (MetricsProviders.TryRemove(typeof(TProvider), out var removedProvider))
+            {
+                UnsubscribeProvider(removedProvider);
+            }
+
+            if (MetricsProviders.TryAdd(typeof(TProvider), newProvider))
+            {
+                SubscribeProvider(newProvider);
+            }
         }
     }
 
@@ -69,6 +79,12 @@ internal static class MetricProviderRegistrar
         RegisterAll(new[] { typeof(MetricProviderRegistrar).Assembly });
     }
 
+    /// <summary>
+    /// Registers every <see cref="IMongoDbClientMetricProvider"/> implementation found in the
+    /// given assemblies. Types that are already registered are skipped, so this can be called
+    /// repeatedly (e.g. once for the built-in assembly at startup, later for a custom one).
+    /// </summary>
+    /// <param name="assemblies">Assemblies to scan for provider implementations.</param>
     public static void RegisterAll(IEnumerable<Assembly> assemblies)
     {
         var assembliesToScan = assemblies?.ToArray() ?? Array.Empty<Assembly>();
@@ -79,20 +95,60 @@ internal static class MetricProviderRegistrar
 
         lock (MetricsProviders)
         {
-            if (_isRegistered)
+            foreach (var metricProviderType in EnumerateIMetricsHandlers(assembliesToScan))
             {
-                return;
+                if (MetricsProviders.ContainsKey(metricProviderType))
+                {
+                    continue;
+                }
+
+                var metricProvider = (IMongoDbClientMetricProvider)Activator.CreateInstance(metricProviderType)!;
+                MetricsProviders[metricProviderType] = metricProvider;
+
+                SubscribeProvider(metricProvider);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers a single provider instance, replacing any previously registered provider
+    /// of the same type. Useful for custom providers and for overriding built-ins in tests.
+    /// </summary>
+    /// <param name="provider">The provider instance to register.</param>
+    public static void Register(IMongoDbClientMetricProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        lock (MetricsProviders)
+        {
+            if (MetricsProviders.TryRemove(provider.GetType(), out var removedProvider))
+            {
+                UnsubscribeProvider(removedProvider);
             }
 
-            _isRegistered = true;
+            MetricsProviders[provider.GetType()] = provider;
+            SubscribeProvider(provider);
         }
+    }
 
-        foreach (var metricProviderType in EnumerateIMetricsHandlers(assembliesToScan))
+    /// <summary>
+    /// Unregisters a previously registered provider instance and detaches its event handlers.
+    /// </summary>
+    /// <param name="provider">The provider instance to remove.</param>
+    public static void Unregister(IMongoDbClientMetricProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        lock (MetricsProviders)
         {
-            var metricProvider = (IMongoDbClientMetricProvider)Activator.CreateInstance(metricProviderType)!;
-            MetricsProviders.TryAdd(metricProviderType, metricProvider);
-
-            SubscribeProvider(metricProvider);
+            foreach (var entry in MetricsProviders)
+            {
+                if (ReferenceEquals(entry.Value, provider) && MetricsProviders.TryRemove(entry.Key, out _))
+                {
+                    UnsubscribeProvider(provider);
+                    break;
+                }
+            }
         }
     }
 

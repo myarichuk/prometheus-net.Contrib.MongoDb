@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 
 namespace PrometheusNet.MongoDb.Events;
 
@@ -37,7 +37,9 @@ public abstract class MongoCommandEvent
 
     /// <summary>
     /// The command filter document, when the command carries one (e.g. <c>find</c>).
-    /// This is a reference into the driver's event data; do not mutate it.
+    /// For <c>aggregate</c> commands this is a thin wrapper around the command's
+    /// <c>pipeline</c> array (no stage is copied), so the same leaf-counting
+    /// semantics apply. This is a reference into the driver's event data; do not mutate it.
     /// </summary>
     public BsonDocument? FilterDocument { get; set; }
 
@@ -56,6 +58,24 @@ public abstract class MongoCommandEvent
     public TimeSpan? Duration { get; set; }
 
     public long? CursorId { get; set; }
+
+    /// <summary>
+    /// Cursor ids named by a <c>killCursors</c> command (<c>cursors: [...]</c>), or
+    /// <c>null</c> for every other command. Cursor bookkeeping keyed by
+    /// <see cref="CursorKey"/> uses these to release state: a <c>killCursors</c> is a
+    /// separate driver operation with its own <see cref="OperationId"/>, so it can
+    /// only be matched to the cursor it closes by id.
+    /// </summary>
+    public List<long>? KilledCursorIds { get; set; }
+
+    /// <summary>
+    /// Stable key for per-cursor bookkeeping: the cursor id while the cursor is open,
+    /// falling back to the operation id for single-batch cursors (whose reply id is 0)
+    /// and for events that carry no cursor information. Keying by operation id alone
+    /// is wrong: a <c>killCursors</c> runs as its own operation, and operation ids
+    /// can repeat across connections.
+    /// </summary>
+    public long CursorKey => CursorId is long id and not 0 ? id : OperationId;
 
     /// <summary>
     /// Clears every field so a pooled instance can be reused without leaking
@@ -77,6 +97,7 @@ public abstract class MongoCommandEvent
         IsFinalBatch = false;
         Duration = null;
         CursorId = null;
+        KilledCursorIds = null;
         CommandDocument = null;
     }
 
