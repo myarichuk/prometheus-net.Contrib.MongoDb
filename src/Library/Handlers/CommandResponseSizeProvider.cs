@@ -1,33 +1,27 @@
-﻿using Prometheus;
 using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
-// ReSharper disable ComplexConditionExpression
 
-/// <summary>
-/// Provides metrics related to the size of MongoDB command responses.
-/// </summary>
-internal class CommandResponseSizeProvider : IMongoDbClientMetricProvider
+namespace PrometheusNet.Contrib.MongoDb.Handlers;
+
+/// <summary>Records the size of each reply received, as serialized on the wire.</summary>
+internal sealed class CommandResponseSizeProvider : IMongoDbClientMetricProvider
 {
-    /// <summary>
-    /// Histogram metric to measure the size of MongoDB command responses.
-    /// Buckets are configured to capture various ranges of response sizes.
-    /// </summary>
-    public static readonly Histogram CommandResponseSize = Metrics.CreateHistogram(
-        "mongodb_client_command_response_size", // Metric name
-        "Size of the MongoDB command responses (in bytes)", // Help text
-        new HistogramConfiguration
-        {
-            LabelNames = new[] { "command_type", "target_collection", "target_db" },
-            Buckets = new[] { 512.0, 1024.0, 100.0 * 1024, 1024.0 * 1024.0 },
-        });
+    private readonly MetricChildCache<(string, string, string), HistogramChild> _responseSizeCache;
 
-    /// <summary>
-    /// Handles the successful completion of a MongoDB command event.
-    /// </summary>
-    /// <param name="e">The event data.</param>
-    private readonly MetricChildCache<(string, string, string), Histogram.Child> _responseSizeCache =
-        new(key => CommandResponseSize.WithLabels(key.Item1, key.Item2, key.Item3));
+    public CommandResponseSizeProvider(InstrumentationSession session)
+    {
+        ResponseSize = session.Sink.Histogram(
+            "mongodb_client_command_response_size_bytes",
+            "Size of command replies received (bytes)",
+            CommandRequestSizeMetricProvider.SizeBuckets,
+            "command_type",
+            "target_collection",
+            "target_db");
+        _responseSizeCache = new(key => ResponseSize.WithLabels(key.Item1, key.Item2, key.Item3));
+    }
+
+    internal HistogramFamily ResponseSize { get; }
 
     public void Handle(MongoCommandEventSuccess e)
     {

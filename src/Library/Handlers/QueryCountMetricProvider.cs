@@ -1,39 +1,25 @@
-﻿using Prometheus;
 using PrometheusNet.MongoDb.Events;
 
 namespace PrometheusNet.MongoDb.Handlers;
 
-/// <summary>
-/// Provides functionality for tracking and recording MongoDB query counts.
-/// </summary>
-internal class QueryCountMetricProvider : IMongoDbClientMetricProvider
+/// <summary>Counts queries: <c>find</c> and <c>aggregate</c> commands, by collection.</summary>
+internal sealed class QueryCountMetricProvider : IMongoDbClientMetricProvider
 {
-    /// <summary>
-    /// A counter metric that captures the count of MongoDB queries.
-    /// </summary>
-    /// <remarks>
-    /// The metric includes labels for the type of query ("find" or "aggregate"), the target collection, and the target database.
-    /// </remarks>
-    internal readonly Counter QueryCount = Metrics.CreateCounter(
-        "mongodb_client_query_count",
-        "Count of MongoDB queries",
-        new CounterConfiguration
-        {
-            LabelNames = new[] { "query_type", "target_collection", "target_db" },
-        });
+    private readonly MetricChildCache<(string, string, string), CounterChild> _queryCountCache;
 
-    private readonly MetricChildCache<(string, string, string), Counter.Child> _queryCountCache;
+    public QueryCountMetricProvider(InstrumentationSession session)
+    {
+        Queries = session.Sink.Counter(
+            "mongodb_client_queries_total",
+            "Queries (find and aggregate commands) sent",
+            "query_type",
+            "target_collection",
+            "target_db");
+        _queryCountCache = new(key => Queries.WithLabels(key.Item1, key.Item2, key.Item3));
+    }
 
-    public QueryCountMetricProvider() =>
-        _queryCountCache = new(key => QueryCount.WithLabels(key.Item1, key.Item2, key.Item3));
+    internal CounterFamily Queries { get; }
 
-    /// <summary>
-    /// Handles the event triggered when a MongoDB command is executed.
-    /// </summary>
-    /// <param name="e">Event information for the executed MongoDB command.</param>
-    /// <remarks>
-    /// This will increment the counter for "find" and "aggregate" MongoDB queries with appropriate labels.
-    /// </remarks>
     public void Handle(MongoCommandEventStart e)
     {
         if (e.OperationType is MongoOperationType.Find or MongoOperationType.Aggregate)

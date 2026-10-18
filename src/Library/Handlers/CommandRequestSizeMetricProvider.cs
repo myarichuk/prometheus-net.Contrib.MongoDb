@@ -2,47 +2,33 @@ using Prometheus;
 using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
-// ReSharper disable ComplexConditionExpression
 
-namespace PrometheusNet.Contrib.MongoDb.Handlers
+namespace PrometheusNet.Contrib.MongoDb.Handlers;
+
+/// <summary>Records the size of each command sent, as serialized on the wire.</summary>
+internal sealed class CommandRequestSizeMetricProvider : IMongoDbClientMetricProvider
 {
-    internal class CommandRequestSizeMetricProvider : IMongoDbClientMetricProvider
+    /// <summary>256 B to 64 MB without gaps: the server's limit is 16 MB per document, 48 MB per message.</summary>
+    internal static readonly double[] SizeBuckets = Histogram.ExponentialBuckets(256, 4, 10);
+
+    private readonly MetricChildCache<(string, string, string), HistogramChild> _requestSizeCache;
+
+    public CommandRequestSizeMetricProvider(InstrumentationSession session)
     {
-        /// <summary>
-        /// A histogram metric that tracks the size (in bytes) of MongoDB commands being sent.
-        /// </summary>
-        /// <remarks>
-        /// The metric has the following labels:
-        /// - command_type: The type of MongoDB operation (e.g., find, update, etc.)
-        /// - target_collection: The MongoDB collection targeted by the operation
-        /// - target_db: The MongoDB database targeted by the operation
-        ///
-        /// The bucket sizes are in bytes and are chosen to cover a range of typical MongoDB command sizes.
-        /// </remarks>
-        public static readonly Histogram CommandRequestSize = Metrics.CreateHistogram(
-            "mongodb_client_command_request_size",
-            "Size of MongoDB commands (in bytes)",
-            new HistogramConfiguration
-            {
-                LabelNames = new[] { "command_type", "target_collection", "target_db" },
-                Buckets = new[] { 512.0, 1024.0, 100.0 * 1024, 1024.0 * 1024.0 },
-            });
-
-        private readonly MetricChildCache<(string, string, string), Histogram.Child> _requestSizeCache =
-            new(key => CommandRequestSize.WithLabels(key.Item1, key.Item2, key.Item3));
-
-        /// <summary>
-        /// Handles event when a MongoDB command starts.
-        /// </summary>
-        /// <param name="event">The event data associated with the MongoDB command start.</param>
-        /// <remarks>
-        /// This method captures the raw size (in bytes) of the MongoDB command and observes it through the histogram.
-        /// </remarks>
-        public void Handle(MongoCommandEventStart @event)
-        {
-            _requestSizeCache
-                .Get((@event.OperationRawType, @event.TargetCollection, @event.TargetDatabase))
-                .Observe(@event.RawRequestSizeInBytes);
-        }
+        RequestSize = session.Sink.Histogram(
+            "mongodb_client_command_request_size_bytes",
+            "Size of commands sent (bytes)",
+            SizeBuckets,
+            "command_type",
+            "target_collection",
+            "target_db");
+        _requestSizeCache = new(key => RequestSize.WithLabels(key.Item1, key.Item2, key.Item3));
     }
+
+    internal HistogramFamily RequestSize { get; }
+
+    public void Handle(MongoCommandEventStart e) =>
+        _requestSizeCache
+            .Get((e.OperationRawType, e.TargetCollection, e.TargetDatabase))
+            .Observe(e.RawRequestSizeInBytes);
 }

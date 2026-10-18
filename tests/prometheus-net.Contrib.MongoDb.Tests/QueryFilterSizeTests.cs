@@ -1,11 +1,9 @@
 using MongoDB.Bson;
 using MongoDB.Driver;
-using Prometheus;
 using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.MongoDb.Tests
 {
-    [Collection("NonConcurrentCollection")]
     public class QueryFilterSizeTests
     {
         [Fact]
@@ -69,24 +67,30 @@ namespace PrometheusNet.MongoDb.Tests
             Assert.Equal(expectedFilterSize, actualFilterSize);
         }
 
-        private async Task TestMongoOperationWithFilterSizeAsync(FilterDefinition<TestDocument> filter, int expectedFilterSize)
+        [Fact]
+        public async Task Filter_size_is_off_by_default()
         {
-            if (!MetricProviderRegistrar.TryGetProvider<QueryFilterSizeMetricProvider>(out var provider) || provider == null)
+            await MongoTestContext.RunAsync(async (collection, session) =>
             {
-                throw new Exception($"Failed to fetch an instance of {nameof(QueryFilterSizeMetricProvider)}");
-            }
+                _ = await collection.Find(Builders<TestDocument>.Filter.Eq(x => x.Id, "1")).ToListAsync();
 
-            var filterSizeBefore = provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Sum;
-
-            await MongoTestContext.RunAsync(async collection =>
-            {
-                _ = await collection.Find(filter).ToListAsync();
+                Assert.Throws<InvalidOperationException>(() => session.Provider<QueryFilterSizeMetricProvider>());
+                Assert.DoesNotContain("mongodb_client_query_filter_size", await session.ExpositionAsync());
             });
+        }
 
-            var filterSizeAfter = provider.QueryFilterSize.WithLabels("find", "testCollection", "test").Sum;
+        private static async Task TestMongoOperationWithFilterSizeAsync(FilterDefinition<TestDocument> filter, int expectedFilterSize)
+        {
+            await MongoTestContext.RunAsync(
+                async (collection, session) =>
+                {
+                    _ = await collection.Find(filter).ToListAsync();
 
-            // note: take into account other tests with 'find' might change this metric
-            Assert.Equal(expectedFilterSize, filterSizeAfter - filterSizeBefore);
+                    var filterSize = session.Provider<QueryFilterSizeMetricProvider>().QueryFilterSize
+                        .WithLabels("find", MongoTestContext.Collection, MongoTestContext.Database);
+                    Assert.Equal(expectedFilterSize, filterSize.Sum);
+                },
+                options => options.MeasureFilterComplexity = true);
         }
     }
 }

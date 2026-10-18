@@ -1,35 +1,30 @@
 ﻿using System.Buffers;
 using MongoDB.Bson;
-using Prometheus;
 using PrometheusNet.MongoDb.Events;
 
 namespace PrometheusNet.MongoDb.Handlers
 {
     /// <summary>
-    /// Provides functionality for tracking and recording the size of MongoDB query filters.
+    /// Records how complex queries are: the leaf values in a find filter or aggregation
+    /// pipeline. Opt-in (<c>MeasureFilterComplexity</c>), because it walks every filter.
     /// </summary>
-    internal class QueryFilterSizeMetricProvider : IMongoDbClientMetricProvider
+    internal sealed class QueryFilterSizeMetricProvider : IMongoDbClientMetricProvider
     {
-        /// <summary>
-        /// A histogram metric that captures the size of MongoDB query filters.
-        /// </summary>
-        public readonly Histogram QueryFilterSize = Metrics.CreateHistogram(
-            "mongodb_client_query_filter_size",
-            "Size of MongoDB query filters",
-            new HistogramConfiguration
-            {
-                LabelNames = new[] { "query_type", "target_collection", "target_db" },
-                Buckets = new[] { 5.0, 10.0, 50.0, 250.0 },
-            });
+        private readonly MetricChildCache<(string, string, string), HistogramChild> _filterSizeCache;
 
-        /// <summary>
-        /// Handles the event triggered when a MongoDB query is executed.
-        /// </summary>
-        /// <param name="e">Event information for the executed MongoDB query.</param>
-        private readonly MetricChildCache<(string, string, string), Histogram.Child> _filterSizeCache;
-
-        public QueryFilterSizeMetricProvider() =>
+        public QueryFilterSizeMetricProvider(InstrumentationSession session)
+        {
+            QueryFilterSize = session.Sink.Histogram(
+                "mongodb_client_query_filter_size",
+                "Leaf values in each find filter or aggregation pipeline",
+                Prometheus.Histogram.ExponentialBuckets(1, 2, 10),
+                "query_type",
+                "target_collection",
+                "target_db");
             _filterSizeCache = new(key => QueryFilterSize.WithLabels(key.Item1, key.Item2, key.Item3));
+        }
+
+        internal HistogramFamily QueryFilterSize { get; }
 
         public void Handle(MongoCommandEventStart e)
         {

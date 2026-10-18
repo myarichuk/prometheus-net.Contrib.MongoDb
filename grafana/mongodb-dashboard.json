@@ -6,7 +6,7 @@
     "prometheus-net"
   ],
   "schemaVersion": 39,
-  "version": 1,
+  "version": 4,
   "editable": true,
   "timezone": "browser",
   "refresh": "30s",
@@ -24,6 +24,29 @@
         "current": {}
       },
       {
+        "name": "client",
+        "label": "Client",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(mongodb_client_command_duration_seconds_count, client)",
+          "refId": "v"
+        },
+        "definition": "label_values(mongodb_client_command_duration_seconds_count, client)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "sort": 1
+      },
+      {
         "name": "db",
         "label": "Database",
         "type": "query",
@@ -32,10 +55,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(mongodb_client_command_duration_count, target_db)",
+          "query": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\"}, target_db)",
           "refId": "v"
         },
-        "definition": "label_values(mongodb_client_command_duration_count, target_db)",
+        "definition": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\"}, target_db)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,
@@ -55,10 +78,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(mongodb_client_command_duration_count{target_db=~\"$db\"}, target_collection)",
+          "query": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\"}, target_collection)",
           "refId": "v"
         },
-        "definition": "label_values(mongodb_client_command_duration_count{target_db=~\"$db\"}, target_collection)",
+        "definition": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\"}, target_collection)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,
@@ -70,18 +93,18 @@
         "sort": 1
       },
       {
-        "name": "cluster",
-        "label": "Cluster",
+        "name": "server",
+        "label": "Server",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(mongodb_client_connection_creation_rate, cluster_id)",
+          "query": "label_values(mongodb_client_pool_connections{client=~\"$client\"}, server)",
           "refId": "v"
         },
-        "definition": "label_values(mongodb_client_connection_creation_rate, cluster_id)",
+        "definition": "label_values(mongodb_client_pool_connections{client=~\"$client\"}, server)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,
@@ -122,7 +145,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 1
       },
@@ -148,7 +171,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_duration_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
+          "expr": "sum(rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
         }
       ]
     },
@@ -156,15 +179,15 @@
       "type": "stat",
       "id": 3,
       "title": "Error rate",
-      "description": "Assumes failed commands use status != success; adjust if your status label differs.",
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 4,
         "y": 1
       },
       "fieldConfig": {
@@ -189,7 +212,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_duration_count{target_db=~\"$db\",target_collection=~\"$collection\",status!=\"success\"}[$__rate_interval])) / sum(rate(mongodb_client_command_duration_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
+          "expr": "sum(rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\",status=\"failure\"}[$__rate_interval])) / sum(rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
         }
       ]
     },
@@ -204,7 +227,49 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "exemplar": true
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 5,
+      "title": "p95 pool checkout wait",
+      "description": "Time to get a connection from the pool. Not part of command latency: a saturated pool shows up here first.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
         "x": 12,
         "y": 1
       },
@@ -230,14 +295,15 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "exemplar": true
         }
       ]
     },
     {
       "type": "stat",
-      "id": 5,
-      "title": "Open cursors",
+      "id": 6,
+      "title": "Commands in flight",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -245,8 +311,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 16,
         "y": 1
       },
       "fieldConfig": {
@@ -271,13 +337,54 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(mongodb_client_open_cursors_count{target_db=~\"$db\",target_collection=~\"$collection\"})"
+          "expr": "sum(mongodb_client_commands_in_flight{client=~\"$client\"})"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "id": 7,
+      "title": "Retries / s",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum(rate(mongodb_client_command_retries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
         }
       ]
     },
     {
       "type": "row",
-      "id": 6,
+      "id": 8,
       "title": "Commands",
       "collapsed": false,
       "gridPos": {
@@ -290,7 +397,7 @@
     },
     {
       "type": "timeseries",
-      "id": 7,
+      "id": 9,
       "title": "Command rate by type",
       "description": "",
       "datasource": {
@@ -335,14 +442,14 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (command_type) (rate(mongodb_client_command_duration_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (command_type) (rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{command_type}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 8,
+      "id": 10,
       "title": "Command latency percentiles",
       "description": "",
       "datasource": {
@@ -387,8 +494,9 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_command_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p50"
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -396,8 +504,9 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p95"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -405,14 +514,15 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_command_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p99"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "exemplar": true
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 9,
+      "id": 11,
       "title": "p95 latency by command type",
       "description": "",
       "datasource": {
@@ -457,14 +567,15 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{command_type}}"
+          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "{{command_type}}",
+          "exemplar": true
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 10,
+      "id": 12,
       "title": "p95 latency by collection",
       "description": "",
       "datasource": {
@@ -509,15 +620,16 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,target_db,target_collection) (rate(mongodb_client_command_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{target_db}}.{{target_collection}}"
+          "expr": "histogram_quantile(0.95, sum by (le,target_db,target_collection) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "{{target_db}}.{{target_collection}}",
+          "exemplar": true
         }
       ]
     },
     {
       "type": "row",
-      "id": 11,
-      "title": "Errors",
+      "id": 13,
+      "title": "Errors and retries",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -529,7 +641,115 @@
     },
     {
       "type": "timeseries",
-      "id": 12,
+      "id": 14,
+      "title": "Errors / s by category",
+      "description": "timeout, network, server or client. Network errors and timeouts point at the path to the server; server errors at the request.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (category) (rate(mongodb_client_command_errors_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "legendFormat": "{{category}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 15,
+      "title": "Errors / s by server code",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (code_name, retryable) (rate(mongodb_client_command_errors_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\",code_name!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{code_name}} (retryable={{retryable}})"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 16,
       "title": "Errors / s by command and error type",
       "description": "",
       "datasource": {
@@ -540,7 +760,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 23
+        "y": 31
       },
       "fieldConfig": {
         "defaults": {
@@ -574,15 +794,371 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (command_type,error_type) (rate(mongodb_client_command_errors_total_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
-          "legendFormat": "{{command_type}} / {{error_type}}"
+          "expr": "sum by (command_type,error_type) (rate(mongodb_client_command_errors_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "legendFormat": "{{command_type}} {{error_type}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 13,
-      "title": "Errors / s by collection",
+      "id": 17,
+      "title": "Retries / s by command",
+      "description": "Commands the driver retried after a retryable error. The application saw only the retry's outcome.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (command_type) (rate(mongodb_client_command_retries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "legendFormat": "{{command_type}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 18,
+      "title": "Connection pool and server selection",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 19,
+      "title": "Pool checkout wait percentiles",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "exemplar": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "exemplar": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 20,
+      "title": "Pool checkout failures / s",
+      "description": "timeout means the pool was exhausted for longer than WaitQueueTimeout.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (server,reason) (rate(mongodb_client_pool_checkout_failures_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
+          "legendFormat": "{{server}} {{reason}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 21,
+      "title": "Connections in use vs pool size",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (server) (mongodb_client_pool_connections_in_use{client=~\"$client\",server=~\"$server\"})",
+          "legendFormat": "in use {{server}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B",
+          "expr": "sum by (server) (mongodb_client_pool_connections{client=~\"$client\",server=~\"$server\"})",
+          "legendFormat": "pooled {{server}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 22,
+      "title": "Pool clears",
+      "description": "The driver clears a pool after a network error or when the server becomes unusable.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (server) (increase(mongodb_client_pool_cleared_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
+          "legendFormat": "{{server}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 23,
+      "title": "Server selection p95 by operation",
+      "description": "Time spent finding a suitable server. Spikes during elections or when no primary is reachable.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le,operation) (rate(mongodb_client_server_selection_duration_seconds_bucket{client=~\"$client\",}[$__rate_interval])))",
+          "legendFormat": "{{operation}}",
+          "exemplar": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 24,
+      "title": "Server selection failures / s",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -592,7 +1168,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 23
+        "y": 56
       },
       "fieldConfig": {
         "defaults": {
@@ -626,29 +1202,29 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_db,target_collection) (rate(mongodb_client_command_errors_total_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
-          "legendFormat": "{{target_db}}.{{target_collection}}"
+          "expr": "sum by (operation) (rate(mongodb_client_server_selection_failures_total{client=~\"$client\"}[$__rate_interval]))",
+          "legendFormat": "{{operation}}"
         }
       ]
     },
     {
       "type": "row",
-      "id": 14,
-      "title": "Queries",
+      "id": 25,
+      "title": "Servers",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 64
       },
       "panels": []
     },
     {
       "type": "timeseries",
-      "id": 15,
-      "title": "Query rate by type",
-      "description": "Spikes and N+1 detection",
+      "id": 26,
+      "title": "Round trip time",
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -657,7 +1233,111 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 65
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "max by (server) (mongodb_client_server_rtt_seconds{client=~\"$client\",server=~\"$server\"})",
+          "legendFormat": "{{server}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 27,
+      "title": "Server type changes",
+      "description": "Elections, step-downs and outages: a server becoming primary, secondary or unknown.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 65
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (server,new_type) (increase(mongodb_client_server_type_changes_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
+          "legendFormat": "{{server}} -> {{new_type}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 28,
+      "title": "Heartbeat failures / s",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 73
       },
       "fieldConfig": {
         "defaults": {
@@ -691,14 +1371,79 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (query_type) (rate(mongodb_client_query_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (server) (rate(mongodb_client_server_heartbeat_failures_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
+          "legendFormat": "{{server}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 29,
+      "title": "Queries",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 81
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 30,
+      "title": "Query rate by type",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 82
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (query_type) (rate(mongodb_client_queries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{query_type}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 16,
+      "id": 31,
       "title": "Query rate by collection",
       "description": "",
       "datasource": {
@@ -709,7 +1454,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 82
       },
       "fieldConfig": {
         "defaults": {
@@ -743,16 +1488,16 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_db,target_collection) (rate(mongodb_client_query_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (target_db,target_collection) (rate(mongodb_client_queries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{target_db}}.{{target_collection}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 17,
-      "title": "Query filter size p95 (clauses)",
-      "description": "",
+      "id": 32,
+      "title": "Query filter size p95 (leaf values)",
+      "description": "Empty unless MeasureFilterComplexity is on.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -761,7 +1506,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 40
+        "y": 90
       },
       "fieldConfig": {
         "defaults": {
@@ -795,14 +1540,15 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,query_type,target_collection) (rate(mongodb_client_query_filter_size_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{query_type}} {{target_collection}}"
+          "expr": "histogram_quantile(0.95, sum by (le,query_type,target_collection) (rate(mongodb_client_query_filter_size_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "{{query_type}} {{target_collection}}",
+          "exemplar": true
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 18,
+      "id": 33,
       "title": "Avg documents per cursor",
       "description": "",
       "datasource": {
@@ -813,7 +1559,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 40
+        "y": 90
       },
       "fieldConfig": {
         "defaults": {
@@ -847,250 +1593,29 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_collection) (rate(mongodb_client_cursor_document_count_sum{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])) / sum by (target_collection) (rate(mongodb_client_cursor_document_count_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (target_collection) (rate(mongodb_client_cursor_documents_sum{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])) / sum by (target_collection) (rate(mongodb_client_cursor_documents_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{target_collection}}"
         }
       ]
     },
     {
       "type": "row",
-      "id": 19,
-      "title": "Payload size",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 48
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "id": 20,
-      "title": "Request size p95",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 49
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_request_size_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{command_type}}"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "id": 21,
-      "title": "Response size p95",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 49
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_response_size_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{command_type}}"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "id": 22,
-      "title": "Request throughput",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 57
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_request_size_sum{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
-          "legendFormat": "sent"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "id": 23,
-      "title": "Response throughput",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 57
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_response_size_sum{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
-          "legendFormat": "received"
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "id": 24,
+      "id": 34,
       "title": "Cursors",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 98
       },
       "panels": []
     },
     {
       "type": "timeseries",
-      "id": 25,
+      "id": 35,
       "title": "Open cursors",
-      "description": "A steadily growing value suggests abandoned cursors.",
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1099,7 +1624,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 66
+        "y": 99
       },
       "fieldConfig": {
         "defaults": {
@@ -1133,15 +1658,15 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_db,target_collection) (mongodb_client_open_cursors_count{target_db=~\"$db\",target_collection=~\"$collection\"})",
+          "expr": "sum by (target_db,target_collection) (mongodb_client_cursors_open{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"})",
           "legendFormat": "{{target_db}}.{{target_collection}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 26,
-      "title": "Cursor open duration percentiles",
+      "id": 36,
+      "title": "Cursor lifetime percentiles",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -1151,7 +1676,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 66
+        "y": 99
       },
       "fieldConfig": {
         "defaults": {
@@ -1185,8 +1710,9 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_open_cursors_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p50"
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -1194,8 +1720,9 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_open_cursors_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p95"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -1203,29 +1730,17 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_open_cursors_duration_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p99"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "exemplar": true
         }
       ]
     },
     {
-      "type": "row",
-      "id": 27,
-      "title": "Connections",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 74
-      },
-      "panels": []
-    },
-    {
       "type": "timeseries",
-      "id": 28,
-      "title": "Connection creation rate",
-      "description": "High values indicate connection churn.",
+      "id": 37,
+      "title": "Cursor closes / s by reason",
+      "description": "exhausted and killed are normal. abandoned means the application leaked a cursor; server_expired that the server reaped one the application was still reading.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1234,7 +1749,351 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 75
+        "y": 107
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 40,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (reason) (rate(mongodb_client_cursors_closed_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "legendFormat": "{{reason}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 38,
+      "title": "Leaked and expired cursors by collection",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 107
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum by (target_db,target_collection,reason) (increase(mongodb_client_cursors_closed_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\",reason=~\"abandoned|server_expired\"}[$__rate_interval]))",
+          "legendFormat": "{{target_db}}.{{target_collection}} {{reason}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 39,
+      "title": "Payload size",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 115
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 40,
+      "title": "Request size p95",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 116
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_request_size_bytes_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "{{command_type}}",
+          "exemplar": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 41,
+      "title": "Response size p95",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 116
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_response_size_bytes_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "legendFormat": "{{command_type}}",
+          "exemplar": true
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 42,
+      "title": "Request throughput",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 124
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum(rate(mongodb_client_command_request_size_bytes_sum{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "legendFormat": "sent"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "id": 43,
+      "title": "Response throughput",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 124
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum(rate(mongodb_client_command_response_size_bytes_sum{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "legendFormat": "received"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 44,
+      "title": "Connections",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 132
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 45,
+      "title": "Connections opened / s",
+      "description": "Steady churn means connections are being dropped and re-established.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 133
       },
       "fieldConfig": {
         "defaults": {
@@ -1268,14 +2127,14 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (cluster_id,end_point) (rate(mongodb_client_connection_creation_rate{cluster_id=~\"$cluster\"}[$__rate_interval]))",
-          "legendFormat": "{{cluster_id}} {{end_point}}"
+          "expr": "sum by (server) (rate(mongodb_client_connections_opened_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
+          "legendFormat": "{{server}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "id": 29,
+      "id": 46,
       "title": "Connection lifetime percentiles",
       "description": "",
       "datasource": {
@@ -1286,7 +2145,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 75
+        "y": 133
       },
       "fieldConfig": {
         "defaults": {
@@ -1320,8 +2179,9 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_connection_duration_bucket{cluster_id=~\"$cluster\"}[$__rate_interval])))",
-          "legendFormat": "p50"
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -1329,8 +2189,9 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_connection_duration_bucket{cluster_id=~\"$cluster\"}[$__rate_interval])))",
-          "legendFormat": "p95"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -1338,8 +2199,92 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_connection_duration_bucket{cluster_id=~\"$cluster\"}[$__rate_interval])))",
-          "legendFormat": "p99"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "exemplar": true
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 47,
+      "title": "Instrumentation",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 141
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "id": 48,
+      "title": "Instrumentation problems",
+      "description": "Label overflow: more distinct (database, collection) pairs than MaxCollectionLabels; they are recorded as __other__.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 142
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "A",
+          "expr": "sum(increase(mongodb_client_instrumentation_label_overflow_total{client=~\"$client\"}[$__rate_interval]))",
+          "legendFormat": "label overflow"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "B",
+          "expr": "sum(increase(mongodb_client_instrumentation_orphaned_commands_total{client=~\"$client\"}[$__rate_interval]))",
+          "legendFormat": "orphaned commands"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "refId": "C",
+          "expr": "sum by (provider) (increase(mongodb_client_instrumentation_handler_errors_total{client=~\"$client\"}[$__rate_interval]))",
+          "legendFormat": "handler errors {{provider}}"
         }
       ]
     }

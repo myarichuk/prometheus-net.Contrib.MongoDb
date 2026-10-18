@@ -1,11 +1,6 @@
-using System.Collections.Concurrent;
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using MongoDB.Driver.Core.Configuration;
-using MongoDB.Driver.Core.Connections;
-using MongoDB.Driver.Core.Events;
-using PrometheusNet.Contrib.MongoDb.Events;
 using PrometheusNet.MongoDb;
 using PrometheusNet.MongoDb.Events;
 
@@ -20,32 +15,25 @@ using PrometheusNet.MongoDb.Events;
 namespace PrometheusNet.Contrib.MongoDb;
 
 /// <summary>
-/// Provides instrumentation for MongoDB operations, exporting metrics to Prometheus.
+/// Instruments MongoDB clients: <see cref="InstrumentForPrometheus"/> attaches a separate
+/// instrumentation to each client's settings. The command parsing shared by all of them
+/// (what a command is, which collection it targets, what its reply says about cursors) is
+/// stateless and lives here.
 /// </summary>
 public static class MongoInstrumentation
 {
-    /// <summary>
-    /// Minimal per-command correlation state. Deliberately small: entries live in
-    /// <see cref="Commands"/> only between the driver's start and end callbacks, and
-    /// orphans (commands whose end event never arrives) must stay cheap.
-    /// No command or reply payloads are retained here.
-    /// </summary>
-    private readonly record struct CommandCorrelation(
-        string Database,
-        string Collection,
-        MongoOperationType OperationType,
-        int RequestSizeInBytes,
-        long? CursorId);
-
-    // Keyed by (connection, request): request ids are scoped per connection, so a bare
-    // request id can collide across concurrent connections and miscorrelate metrics.
-    private static readonly ConcurrentDictionary<(ConnectionId Connection, int Request), CommandCorrelation> Commands = new();
-
-    // Driver-internal handshake / monitoring commands. The driver sends these on its own
-    // (SDAM heartbeats); they carry no user collection and would only add noise.
+    // Commands the driver sends on its own: handshakes and heartbeats, authentication and
+    // session cleanup. The application never asked for them, so they would only add noise.
+    // Every other command is measured, with or without a collection.
     // Compared case-insensitively: the wire name varies ("hello", "isMaster", "ismaster").
     private static readonly FrozenSet<string> IgnoredCommands =
-        FrozenSet.ToFrozenSet<string>(["hello", "ismaster"], StringComparer.OrdinalIgnoreCase);
+        FrozenSet.ToFrozenSet<string>(
+            ["hello", "ismaster", "saslStart", "saslContinue", "authenticate", "endSessions"],
+            StringComparer.OrdinalIgnoreCase);
+
+    // The namespace a server gives cursors opened by database-level commands
+    // (`aggregate: 1` reports `$cmd.aggregate`, `listCollections` reports `$cmd.listCollections`).
+    private const string CommandNamespacePrefix = "$cmd.";
 
     private static readonly FrozenDictionary<string, MongoOperationType> OperationTypes =
         new Dictionary<string, MongoOperationType>(StringComparer.OrdinalIgnoreCase)
@@ -87,227 +75,63 @@ public static class MongoInstrumentation
             ["whatsmyuri"] = MongoOperationType.WhatsMyUri,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-    static MongoInstrumentation()
+    /// <summary>
+    /// Instruments the client built from these settings. Each call creates a separate
+    /// instrumentation with its own options; clients sharing a registry share its metrics.
+    /// </summary>
+    /// <param name="settings">The settings to instrument; they are changed and returned.</param>
+    /// <param name="configure">Configures the instrumentation (registry, Meter, labels, ...).</param>
+    /// <returns>The instrumented settings.</returns>
+    public static MongoClientSettings InstrumentForPrometheus(this MongoClientSettings settings, Action<MongoInstrumentationOptions>? configure = null)
     {
-        MetricProviderRegistrar.RegisterAll();
+        Instrument(settings, configure);
+        return settings;
     }
 
-    /// <summary>
-    /// Instruments the given MongoClientSettings for Prometheus metrics.
-    /// </summary>
-    /// <param name="settings">The MongoClientSettings to instrument.</param>
-    /// <param name="configurator">A delegate to do additional writing for events if needed</param>
-    /// <returns>The instrumented MongoClientSettings.</returns>
-    /// <exception cref="Exception"><see cref="ClusterBuilder"/> delegate in ClusterConfigurator throws an exception</exception>
-    public static MongoClientSettings InstrumentForPrometheus(this MongoClientSettings settings, Action<ClusterBuilder>? configurator = null)
+    /// <summary>Instruments the settings and returns the instrumentation, for tests.</summary>
+    internal static InstrumentationSession Instrument(MongoClientSettings settings, Action<MongoInstrumentationOptions>? configure)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var options = new MongoInstrumentationOptions();
+        configure?.Invoke(options);
+        var session = new InstrumentationSession(options);
+
         var existingConfigurator = settings.ClusterConfigurator;
         settings.ClusterConfigurator = cb =>
         {
             existingConfigurator?.Invoke(cb);
-
-            configurator?.Invoke(cb);
-
-            cb.Subscribe<CommandStartedEvent>(OnCommandStarted);
-            cb.Subscribe<CommandSucceededEvent>(OnCommandSucceeded);
-            cb.Subscribe<CommandFailedEvent>(OnCommandFailed);
-            cb.Subscribe<ConnectionOpenedEvent>(OnConnectionOpened);
-            cb.Subscribe<ConnectionFailedEvent>(OnConnectionFailed);
-            cb.Subscribe<ConnectionClosedEvent>(OnConnectionClosed);
+            session.Attach(cb);
         };
 
-        return settings;
+        return session;
     }
 
-    private static void OnConnectionClosed(ConnectionClosedEvent @event)
-    {
-        var connectionEvent = new MongoConnectionClosedEvent
-        {
-            Endpoint = @event.ServerId.EndPoint.ToString() ?? string.Empty,
-            ClusterId = @event.ServerId.ClusterId.Value,
-            ConnectionId = @event.ConnectionId,
-        };
+    internal static bool IsIgnored(string commandName) => IgnoredCommands.Contains(commandName);
 
-        EventHub.Default.Publish(connectionEvent);
-    }
-
-    private static void OnConnectionFailed(ConnectionFailedEvent @event)
-    {
-        var connectionEvent = new MongoConnectionFailedEvent
-        {
-            Endpoint = @event.ServerId.EndPoint.ToString() ?? string.Empty,
-            Exception = @event.Exception,
-            ClusterId = @event.ServerId.ClusterId.Value,
-            ConnectionId = @event.ConnectionId,
-        };
-
-        EventHub.Default.Publish(connectionEvent);
-    }
-
-    private static void OnConnectionOpened(ConnectionOpenedEvent @event)
-    {
-        var connectionEvent = new MongoConnectionOpenedEvent
-        {
-            Endpoint = @event.ServerId.EndPoint.ToString() ?? string.Empty,
-            ClusterId = @event.ServerId.ClusterId.Value,
-            ConnectionId = @event.ConnectionId,
-        };
-
-        EventHub.Default.Publish(connectionEvent);
-    }
-
-    private static void OnCommandFailed(CommandFailedEvent e)
-    {
-        if (IgnoredCommands.Contains(e.CommandName))
-        {
-            return;
-        }
-
-        if (!Commands.TryRemove((e.ConnectionId, e.RequestId), out var correlation))
-        {
-            return;
-        }
-
-        if (correlation.Collection.Length == 0)
-        {
-            return;
-        }
-
-        // Note: the start command document is NOT retained. The driver recycles its
-        // buffers after sending, so touching it here would throw ObjectDisposedException.
-        // End events therefore carry scalars only; document views are start-event-only.
-        var commandEvent = EventPool<MongoCommandEventFailure>.Rent();
-        try
-        {
-            commandEvent.RequestId = e.RequestId;
-            commandEvent.OperationId = e.OperationId ?? 0;
-            commandEvent.OperationRawType = e.CommandName;
-            commandEvent.RawRequestSizeInBytes = correlation.RequestSizeInBytes;
-            commandEvent.Duration = e.Duration;
-            commandEvent.Failure = e.Failure;
-            commandEvent.OperationType = correlation.OperationType;
-            commandEvent.TargetDatabase = correlation.Database;
-            commandEvent.TargetCollection = correlation.Collection;
-            commandEvent.CursorId = correlation.CursorId;
-            EventHub.Default.Publish(commandEvent);
-        }
-        finally
-        {
-            EventPool<MongoCommandEventFailure>.Return(commandEvent);
-        }
-    }
-
-    private static void OnCommandSucceeded(CommandSucceededEvent e)
-    {
-        if (IgnoredCommands.Contains(e.CommandName))
-        {
-            return;
-        }
-
-        if (!Commands.TryRemove((e.ConnectionId, e.RequestId), out var correlation))
-        {
-            return;
-        }
-
-        if (correlation.Collection.Length == 0)
-        {
-            return;
-        }
-
-        var reply = e.Reply;
-        var commandEvent = EventPool<MongoCommandEventSuccess>.Rent();
-        try
-        {
-            commandEvent.RequestId = e.RequestId;
-            commandEvent.OperationId = e.OperationId ?? 0;
-            commandEvent.OperationRawType = e.CommandName;
-            commandEvent.RawRequestSizeInBytes = correlation.RequestSizeInBytes;
-            commandEvent.Duration = e.Duration;
-            commandEvent.OperationType = correlation.OperationType;
-            commandEvent.TargetDatabase = correlation.Database;
-            commandEvent.TargetCollection = correlation.Collection;
-            commandEvent.CursorId = correlation.CursorId;
-            commandEvent.ReplyDocument = reply;
-
-            ExtractCursorInfo(reply, commandEvent);
-            EventHub.Default.Publish(commandEvent);
-        }
-        finally
-        {
-            EventPool<MongoCommandEventSuccess>.Return(commandEvent);
-        }
-    }
-
-    private static void OnCommandStarted(CommandStartedEvent e)
-    {
-        if (IgnoredCommands.Contains(e.CommandName))
-        {
-            return;
-        }
-
-        var command = e.Command;
-        var targetCollection = GetCollection(e.CommandName, command);
-
-        // Commands without a target collection (ping, auth, endSessions, ...) publish nothing,
-        // and their end events bail out on the same check, so they need neither a correlation
-        // entry nor the (O(command size)) serialization below.
-        if (targetCollection.Length == 0)
-        {
-            return;
-        }
-
-        var operationType = GetOperationType(e.CommandName);
-        var database = e.DatabaseNamespace?.DatabaseName ?? GetDatabase(command);
-
-        // The exact wire size is observed by counting serialized bytes; no buffer
-        // is ever materialized (see BsonSizeCounter).
-        var rawCommandSizeInBytes = BsonSizeCounter.GetSizeInBytes(command);
-
-        var key = (e.ConnectionId, e.RequestId);
-        var correlation = new CommandCorrelation(
-            database,
-            targetCollection,
-            operationType,
-            rawCommandSizeInBytes,
-            GetCursorId(e.CommandName, command));
-
-        // Last-writer-wins: a stale orphan under the same key must never shadow a live command.
-        Commands[key] = correlation;
-
-        var commandEvent = EventPool<MongoCommandEventStart>.Rent();
-        try
-        {
-            commandEvent.RequestId = e.RequestId;
-            commandEvent.OperationId = e.OperationId ?? 0;
-            commandEvent.OperationRawType = e.CommandName;
-            commandEvent.CommandDocument = command;
-            commandEvent.RawRequestSizeInBytes = rawCommandSizeInBytes;
-            commandEvent.Duration = null; // no duration yet
-            commandEvent.OperationType = operationType;
-            commandEvent.TargetDatabase = database;
-            commandEvent.TargetCollection = targetCollection;
-            commandEvent.FilterDocument = GetFilterDocument(command, operationType);
-            commandEvent.CursorId = correlation.CursorId;
-            commandEvent.KilledCursorIds = GetKilledCursorIds(e.CommandName, command);
-            EventHub.Default.Publish(commandEvent);
-        }
-        finally
-        {
-            EventPool<MongoCommandEventStart>.Return(commandEvent);
-        }
-    }
-
-    private static MongoOperationType GetOperationType(string commandName) =>
+    internal static MongoOperationType GetOperationType(string commandName) =>
         OperationTypes.TryGetValue(commandName, out var operationType)
             ? operationType
             : MongoOperationType.Other;
 
-    internal static string GetCollection(string commandName, BsonDocument command)
+    internal static string GetCollection(string commandName, BsonDocument command) =>
+        GetCollection(commandName, GetOperationType(commandName), command);
+
+    internal static string GetCollection(string commandName, MongoOperationType operationType, BsonDocument command)
     {
-        if (command.TryGetValue("collection", out var collection) &&
-            collection is BsonString collectionName)
+        // getMore's command value is the cursor id; its collection is a separate field.
+        // Only getMore looks for it: on any other command the lookup is a miss, and a miss
+        // reads the whole wire-encoded command.
+        if (operationType == MongoOperationType.GetMore)
         {
-            return collectionName.AsString;
+            if (command is RawBsonDocument rawGetMore && RawBson.TryReadString(rawGetMore.Slice, "collection"u8, out var rawCollection))
+            {
+                return rawCollection is null ? string.Empty : CollectionLabel(rawCollection);
+            }
+
+            return command.TryGetValue("collection", out var collection) && collection is BsonString collectionName
+                ? CollectionLabel(collectionName.AsString)
+                : string.Empty;
         }
 
         // Bulk writes carry no top-level collection: the command value is just `1`
@@ -316,7 +140,7 @@ public static class MongoInstrumentation
         // request-size observation, so the first entry is the honest label.
         // The namespace is "db.collection" with the split on the FIRST dot, because
         // collection names may legally contain dots themselves.
-        if (string.Equals(commandName, "bulkWrite", StringComparison.OrdinalIgnoreCase) &&
+        if (operationType == MongoOperationType.BulkWrite &&
             command.TryGetValue("nsInfo", out var nsInfo) &&
             nsInfo is BsonArray { Count: > 0 } namespaces &&
             namespaces[0] is BsonDocument firstNamespace &&
@@ -333,21 +157,42 @@ public static class MongoInstrumentation
             return string.Empty;
         }
 
+        // The command's own value is its first element. On a wire-encoded command the driver's
+        // lookup builds a reader per call; the raw walk allocates nothing for a known name.
+        if (command is RawBsonDocument raw && RawBson.TryReadString(raw.Slice, default, out var rawName))
+        {
+            return rawName is null ? string.Empty : CollectionLabel(rawName);
+        }
+
         if (command.TryGetValue(commandName, out var collectionNameValue) &&
             collectionNameValue is BsonString collectionNameFromCommand)
         {
-            return collectionNameFromCommand.AsString;
+            return CollectionLabel(collectionNameFromCommand.AsString);
         }
 
         return string.Empty;
     }
 
+    // A cursor opened by a database-level command is labelled "" when it opens, so its
+    // getMore and killCursors (which name `$cmd.<command>`) must close it under "" too.
+    private static string CollectionLabel(string collection) =>
+        collection.StartsWith(CommandNamespacePrefix, StringComparison.Ordinal) ? string.Empty : collection;
+
     // Only getMore carries a cursor id as its command value (`getMore: <int64>`). For every other
     // command that value is the collection name, which must never be read as an id.
-    internal static long? GetCursorId(string commandName, BsonDocument command) =>
-        OperationTypes.TryGetValue(commandName, out var type) &&
-        type == MongoOperationType.GetMore &&
-        command.TryGetValue(commandName, out var value)
+    internal static long? GetCursorId(string commandName, BsonDocument command)
+    {
+        if (!OperationTypes.TryGetValue(commandName, out var type) || type != MongoOperationType.GetMore)
+        {
+            return null;
+        }
+
+        if (command is RawBsonDocument raw && RawBson.TryReadInt64(raw.Slice, default, out var rawId))
+        {
+            return rawId;
+        }
+
+        return command.TryGetValue(commandName, out var value)
             ? value switch
             {
                 BsonInt64 int64 => int64.AsInt64,
@@ -355,6 +200,7 @@ public static class MongoInstrumentation
                 _ => null,
             }
             : null;
+    }
 
     // Cursor ids named by a killCursors command (`{ killCursors: "coll", cursors: [...] }`).
     // A killCursors is a separate driver operation with its own operation id, so cursor
@@ -392,9 +238,14 @@ public static class MongoInstrumentation
 
     internal static BsonDocument? GetFilterDocument(BsonDocument command, MongoOperationType operationType)
     {
-        if (command.TryGetValue("filter", out var filter) && filter is BsonDocument filterDocument)
+        // Only find's "filter" is a query filter worth measuring (listCollections and
+        // listDatabases carry one too, over metadata); probing every insert/update for one
+        // would read each command to its end for nothing.
+        if (operationType == MongoOperationType.Find)
         {
-            return filterDocument;
+            return command.TryGetValue("filter", out var filter) && filter is BsonDocument filterDocument
+                ? filterDocument
+                : null;
         }
 
         // Aggregates carry no "filter": their complexity lives in "pipeline".
@@ -409,7 +260,73 @@ public static class MongoInstrumentation
         return null;
     }
 
-    private static void ExtractCursorInfo(BsonDocument? reply, MongoCommandEvent target)
+    // Cursors the server never reaps when idle, so an idle one is not abandoned: find with
+    // noCursorTimeout or tailable (tailable cursors wait for new documents), and change streams.
+    internal static bool CursorNeverTimesOut(BsonDocument command, MongoOperationType operationType, BsonDocument? filterDocument)
+    {
+        if (operationType == MongoOperationType.Find)
+        {
+            if (command is RawBsonDocument raw &&
+                RawBson.TryReadFindCursorFlags(raw.Slice, out var rawNoTimeout, out var rawTailable))
+            {
+                return rawNoTimeout || rawTailable;
+            }
+
+            return IsTrue(command, "noCursorTimeout") || IsTrue(command, "tailable");
+        }
+
+        if (operationType != MongoOperationType.Aggregate)
+        {
+            return false;
+        }
+
+        // A change stream is an aggregate whose first stage is $changeStream.
+        if (command is RawBsonDocument rawAggregate && RawBson.TryReadIsChangeStream(rawAggregate.Slice, out var isChangeStream))
+        {
+            return isChangeStream;
+        }
+
+        filterDocument ??= GetFilterDocument(command, operationType);
+        return filterDocument is not null &&
+               filterDocument.TryGetValue("pipeline", out var pipeline) &&
+               pipeline is BsonArray { Count: > 0 } stages &&
+               stages[0] is BsonDocument { ElementCount: > 0 } firstStage &&
+               firstStage.GetElement(0).Name == "$changeStream";
+
+        static bool IsTrue(BsonDocument document, string name) =>
+            document.TryGetValue(name, out var value) && value is BsonBoolean { Value: true };
+    }
+
+    internal static void ExtractCursorInfo(BsonDocument? reply, MongoCommandEvent target)
+    {
+        if (reply is RawBsonDocument raw &&
+            RawBson.TryReadCursor(raw.Slice, out var hasCursor, out var cursorId, out var isFirstBatch, out var batchCount))
+        {
+            if (hasCursor)
+            {
+                ApplyCursorInfo(target, cursorId, isFirstBatch, batchCount);
+            }
+
+            return;
+        }
+
+        ExtractCursorInfoSlow(reply, target);
+    }
+
+    private static void ApplyCursorInfo(MongoCommandEvent target, long? replyCursorId, bool isFirstBatch, int? batchCount)
+    {
+        if (replyCursorId.HasValue)
+        {
+            target.IsFinalBatch = replyCursorId.Value == 0;
+            target.CursorId ??= replyCursorId;
+        }
+
+        target.IsFirstBatch = isFirstBatch;
+        target.BatchDocumentCount = batchCount;
+    }
+
+    // Materialized replies, and wire-encoded ones the raw walker declined.
+    internal static void ExtractCursorInfoSlow(BsonDocument? reply, MongoCommandEvent target)
     {
         if (reply is null || !reply.TryGetValue("cursor", out var cursorValue) ||
             cursorValue is not BsonDocument cursor)
@@ -417,33 +334,35 @@ public static class MongoInstrumentation
             return;
         }
 
-        if (cursor.TryGetValue("id", out var idValue))
+        long? replyCursorId = null;
+        var isFirstBatch = false;
+        int? batchCount = null;
+        foreach (var element in cursor)
         {
-            var replyCursorId = idValue switch
+            switch (element.Name)
             {
-                BsonInt64 int64 => (long?)int64.AsInt64,
-                BsonInt32 int32 => (long?)int32.AsInt32,
-                _ => null,
-            };
-            if (replyCursorId.HasValue)
-            {
-                target.IsFinalBatch = replyCursorId.Value == 0;
-                target.CursorId ??= replyCursorId;
+                case "id":
+                    replyCursorId = element.Value switch
+                    {
+                        BsonInt64 int64 => int64.AsInt64,
+                        BsonInt32 int32 => int32.AsInt32,
+                        _ => replyCursorId,
+                    };
+                    break;
+                case "firstBatch" when element.Value is BsonArray firstBatch:
+                    isFirstBatch = true;
+                    batchCount = firstBatch.Count;
+                    break;
+                case "nextBatch" when element.Value is BsonArray nextBatch && !isFirstBatch:
+                    batchCount = nextBatch.Count;
+                    break;
             }
         }
 
-        if (cursor.TryGetValue("firstBatch", out var firstBatch) && firstBatch is BsonArray firstBatchArray)
-        {
-            target.IsFirstBatch = true;
-            target.BatchDocumentCount = firstBatchArray.Count;
-        }
-        else if (cursor.TryGetValue("nextBatch", out var nextBatch) && nextBatch is BsonArray nextBatchArray)
-        {
-            target.BatchDocumentCount = nextBatchArray.Count;
-        }
+        ApplyCursorInfo(target, replyCursorId, isFirstBatch, batchCount);
     }
 
-    private static string GetDatabase(BsonDocument command) =>
+    internal static string GetDatabase(BsonDocument command) =>
         command.TryGetValue("$db", out var database) && database is BsonString databaseName
             ? databaseName.AsString
             : "no database";
