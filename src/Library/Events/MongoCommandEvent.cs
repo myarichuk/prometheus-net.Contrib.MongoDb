@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using MongoDB.Bson;
 
 namespace PrometheusNet.MongoDb.Events;
@@ -41,6 +41,8 @@ public abstract class MongoCommandEvent
     /// For <c>aggregate</c> commands this is a thin wrapper around the command's
     /// <c>pipeline</c> array (no stage is copied), so the same leaf-counting
     /// semantics apply. This is a reference into the driver's event data; do not mutate it.
+    /// Set on start events only, and only when a custom provider or the filter complexity
+    /// metric is configured: reading it out of a wire-encoded command allocates.
     /// </summary>
     public BsonDocument? FilterDocument { get; set; }
 

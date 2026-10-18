@@ -33,6 +33,8 @@ internal sealed class InstrumentationSession : ICollectSource
 
     private readonly bool _measureRequestSize;
 
+    private readonly bool _publishFilterDocument;
+
     public InstrumentationSession(MongoInstrumentationOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -79,6 +81,10 @@ internal sealed class InstrumentationSession : ICollectSource
 
         // Sizing a command is cheap but not free; skip it when nobody reads the size.
         _measureRequestSize = options.MeasureSizes || options.Providers.Count > 0;
+
+        // Reading the filter out of a wire-encoded command materializes it; only the filter
+        // complexity metric and custom providers look at it.
+        _publishFilterDocument = options.MeasureFilterComplexity || options.Providers.Count > 0;
 
         foreach (var provider in _providers)
         {
@@ -192,7 +198,7 @@ internal sealed class InstrumentationSession : ICollectSource
         // Exact serialized size: the buffer length of a wire-encoded command, a structural
         // sum for a materialized one; no buffer is ever materialized (see BsonSizeCounter).
         var requestSize = _measureRequestSize ? BsonSizeCounter.GetSizeInBytes(command) : 0;
-        var filterDocument = MongoInstrumentation.GetFilterDocument(command, operationType);
+        var filterDocument = _publishFilterDocument ? MongoInstrumentation.GetFilterDocument(command, operationType) : null;
 
         // Each lookup on a wire-encoded command re-reads it from the start, and a miss reads
         // all of it, so only the fields this command type can carry are looked up.

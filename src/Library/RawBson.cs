@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Text;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
@@ -23,6 +23,7 @@ internal static class RawBson
     private const byte DocumentType = 0x03;
     private const byte ArrayType = 0x04;
     private const byte BooleanType = 0x08;
+    private const byte StringType = 0x02;
 
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
 
@@ -138,6 +139,103 @@ internal static class RawBson
         }
 
         return pos == end;
+    }
+
+    /// <summary>
+    /// Reads a top-level string element: the first element when <paramref name="name"/> is
+    /// empty (a command's own value, e.g. the collection of <c>find</c>), else the named one.
+    /// Repeated values come from <see cref="Utf8StringCache"/>, so they allocate nothing.
+    /// </summary>
+    /// <returns><c>true</c> when walked; <paramref name="value"/> is null when the element is missing or not a string.</returns>
+    public static bool TryReadString(IByteBuffer document, ReadOnlySpan<byte> name, out string? value)
+    {
+        value = null;
+        var reader = new Reader(document);
+        if (!reader.TryFindTopLevel(document.Length, name, out var type, out var valueStart))
+        {
+            return reader.Valid;
+        }
+
+        if (type != StringType)
+        {
+            return true;
+        }
+
+        if (!reader.TryReadInt32(valueStart, out var length) || length < 1 || !reader.TryGetSpan(valueStart + 4, length - 1, out var utf8))
+        {
+            return false;
+        }
+
+        value = Utf8StringCache.Get(utf8);
+        return true;
+    }
+
+    /// <summary>
+    /// Reads a top-level integer element (the first one when <paramref name="name"/> is empty),
+    /// e.g. the cursor id of <c>getMore</c>.
+    /// </summary>
+    /// <returns><c>true</c> when walked; <paramref name="value"/> is null when the element is missing or not an integer.</returns>
+    public static bool TryReadInt64(IByteBuffer document, ReadOnlySpan<byte> name, out long? value)
+    {
+        value = null;
+        var reader = new Reader(document);
+        if (!reader.TryFindTopLevel(document.Length, name, out var type, out var valueStart))
+        {
+            return reader.Valid;
+        }
+
+        if (type == 0x12 && reader.TryReadInt64(valueStart, out var int64))
+        {
+            value = int64;
+        }
+        else if (type == 0x10 && reader.TryReadInt32(valueStart, out var int32))
+        {
+            value = int32;
+        }
+
+        return reader.Valid;
+    }
+
+    /// <summary>Whether an <c>aggregate</c> command's first pipeline stage is <c>$changeStream</c>.</summary>
+    /// <returns><c>false</c> on malformed input; use the driver's accessors then.</returns>
+    public static bool TryReadIsChangeStream(IByteBuffer command, out bool isChangeStream)
+    {
+        isChangeStream = false;
+        var reader = new Reader(command);
+        if (!reader.TryFindElement(0, command.Length, "pipeline"u8, out var type, out var pipelineStart))
+        {
+            return reader.Valid;
+        }
+
+        if (type != ArrayType)
+        {
+            return true;
+        }
+
+        // First stage: { "0": { "$changeStream": ... }, ... }
+        if (!reader.TryFindTopLevel(pipelineStart, command.Length, default, out var stageType, out var stageStart) || stageType != DocumentType)
+        {
+            return reader.Valid;
+        }
+
+        if (!reader.TryReadInt32(stageStart, out var stageLength) || stageLength < 5)
+        {
+            return false;
+        }
+
+        if (stageLength == 5)
+        {
+            return true; // empty stage document
+        }
+
+        var pos = stageStart + 4;
+        if (!reader.TryReadByte(pos++, out _) || !reader.TryNameIs(ref pos, stageStart + stageLength - 1, "$changeStream"u8, out var match))
+        {
+            return false;
+        }
+
+        isChangeStream = match;
+        return true;
     }
 
     /// <summary>
@@ -402,6 +500,71 @@ internal static class RawBson
 
             return false;
         }
+
+        /// <summary>
+        /// Finds the first element (empty <paramref name="wanted"/>) or a named element of the
+        /// document at the start of the buffer.
+        /// </summary>
+        public bool TryFindTopLevel(int limit, ReadOnlySpan<byte> wanted, out byte type, out int valueStart) =>
+            TryFindTopLevel(0, limit, wanted, out type, out valueStart);
+
+        /// <summary>Finds the first element (empty <paramref name="wanted"/>) or a named element of the document at <paramref name="docStart"/>.</summary>
+        public bool TryFindTopLevel(int docStart, int limit, ReadOnlySpan<byte> wanted, out byte type, out int valueStart)
+        {
+            if (!wanted.IsEmpty)
+            {
+                return TryFindElement(docStart, limit, wanted, out type, out valueStart);
+            }
+
+            type = 0;
+            valueStart = 0;
+            if (!TryReadInt32(docStart, out var docLength) || docLength < 5 || docStart + docLength > limit)
+            {
+                return Valid = false;
+            }
+
+            var pos = docStart + 4;
+            var end = docStart + docLength - 1;
+            if (pos >= end)
+            {
+                return false; // empty document: walked, nothing found
+            }
+
+            if (!TryReadByte(pos++, out type) || !TrySkipName(ref pos, end))
+            {
+                return false;
+            }
+
+            valueStart = pos;
+            return true;
+        }
+
+        /// <summary>A contiguous view of <paramref name="length"/> bytes; false when they span buffer chunks.</summary>
+        public bool TryGetSpan(int pos, int length, out ReadOnlySpan<byte> span)
+        {
+            span = default;
+            if (length < 0 || pos < 0 || pos + length > _length)
+            {
+                return Valid = false;
+            }
+
+            if (length == 0)
+            {
+                return true;
+            }
+
+            var segment = _buffer.AccessBackingBytes(pos);
+            if (segment.Array is null || segment.Count < length)
+            {
+                return false;
+            }
+
+            span = new ReadOnlySpan<byte>(segment.Array, segment.Offset, length);
+            return true;
+        }
+
+        public bool TryNameIs(ref int pos, int end, ReadOnlySpan<byte> wanted, out bool match) =>
+            TryNameEquals(ref pos, end, wanted, out match);
 
         /// <summary>Counts the elements of an array whose elements are all documents.</summary>
         public bool TryCountDocuments(int arrayStart, int arrayEnd, out int count)

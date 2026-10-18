@@ -188,11 +188,11 @@ precise cost of the library.
 | Configuration | Mean per command | Allocated per command |
 |---|---|---|
 | Building the driver events alone (baseline) | 63 ns | 320 B |
-| Default | 911 ns | 1,872 B |
-| `MeasureSizes = false` | 825 ns | 1,872 B |
-| `NormalizeLabels` set | 920 ns | 1,872 B |
-| Collection labels past `MaxCollectionLabels` | 963 ns | 1,872 B |
-| Prometheus and a listened-to `Meter` | 936 ns | 1,872 B |
+| Default | 605 ns | 432 B |
+| `MeasureSizes = false` | 533 ns | 432 B |
+| `NormalizeLabels` set | 602 ns | 432 B |
+| Collection labels past `MaxCollectionLabels` | 672 ns | 432 B |
+| Prometheus and a listened-to `Meter` | 621 ns | 432 B |
 
 **End to end** (`MongoBenchmarks`): plain vs. instrumented client against an in-process
 MongoDB wire-protocol double. Absolute times are dominated by the fake round trip, and
@@ -210,8 +210,11 @@ move by ±10 µs between runs.
 
 Takeaways:
 
-- The instrumentation itself costs about 1 µs and 2 KB per command; the label cap, the
-  normaliser and a second backend are each within ±5% of that.
+- The instrumentation itself costs about 0.6 µs and 112 B per command (the allocation is the
+  entry that correlates a command's start with its end). The label cap, the normaliser and a
+  second backend each add at most 10%.
+- Commands are read from the driver's wire bytes, never through its document accessors,
+  which build a reader per lookup; `AllocationTests` fails if one creeps back in.
 - Reply inspection does not grow with batch size: cursor ids and batch counts are read from
   the reply's wire bytes, and sizes from buffer lengths (see `ParsingBenchmarks`).
 <!-- BENCHMARK-RESULTS:END -->

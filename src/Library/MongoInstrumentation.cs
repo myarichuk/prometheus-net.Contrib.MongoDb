@@ -124,6 +124,11 @@ public static class MongoInstrumentation
         // reads the whole wire-encoded command.
         if (operationType == MongoOperationType.GetMore)
         {
+            if (command is RawBsonDocument rawGetMore && RawBson.TryReadString(rawGetMore.Slice, "collection"u8, out var rawCollection))
+            {
+                return rawCollection is null ? string.Empty : CollectionLabel(rawCollection);
+            }
+
             return command.TryGetValue("collection", out var collection) && collection is BsonString collectionName
                 ? CollectionLabel(collectionName.AsString)
                 : string.Empty;
@@ -152,6 +157,13 @@ public static class MongoInstrumentation
             return string.Empty;
         }
 
+        // The command's own value is its first element. On a wire-encoded command the driver's
+        // lookup builds a reader per call; the raw walk allocates nothing for a known name.
+        if (command is RawBsonDocument raw && RawBson.TryReadString(raw.Slice, default, out var rawName))
+        {
+            return rawName is null ? string.Empty : CollectionLabel(rawName);
+        }
+
         if (command.TryGetValue(commandName, out var collectionNameValue) &&
             collectionNameValue is BsonString collectionNameFromCommand)
         {
@@ -168,10 +180,19 @@ public static class MongoInstrumentation
 
     // Only getMore carries a cursor id as its command value (`getMore: <int64>`). For every other
     // command that value is the collection name, which must never be read as an id.
-    internal static long? GetCursorId(string commandName, BsonDocument command) =>
-        OperationTypes.TryGetValue(commandName, out var type) &&
-        type == MongoOperationType.GetMore &&
-        command.TryGetValue(commandName, out var value)
+    internal static long? GetCursorId(string commandName, BsonDocument command)
+    {
+        if (!OperationTypes.TryGetValue(commandName, out var type) || type != MongoOperationType.GetMore)
+        {
+            return null;
+        }
+
+        if (command is RawBsonDocument raw && RawBson.TryReadInt64(raw.Slice, default, out var rawId))
+        {
+            return rawId;
+        }
+
+        return command.TryGetValue(commandName, out var value)
             ? value switch
             {
                 BsonInt64 int64 => int64.AsInt64,
@@ -179,6 +200,7 @@ public static class MongoInstrumentation
                 _ => null,
             }
             : null;
+    }
 
     // Cursor ids named by a killCursors command (`{ killCursors: "coll", cursors: [...] }`).
     // A killCursors is a separate driver operation with its own operation id, so cursor
@@ -253,9 +275,19 @@ public static class MongoInstrumentation
             return IsTrue(command, "noCursorTimeout") || IsTrue(command, "tailable");
         }
 
+        if (operationType != MongoOperationType.Aggregate)
+        {
+            return false;
+        }
+
         // A change stream is an aggregate whose first stage is $changeStream.
-        return operationType == MongoOperationType.Aggregate &&
-               filterDocument is not null &&
+        if (command is RawBsonDocument rawAggregate && RawBson.TryReadIsChangeStream(rawAggregate.Slice, out var isChangeStream))
+        {
+            return isChangeStream;
+        }
+
+        filterDocument ??= GetFilterDocument(command, operationType);
+        return filterDocument is not null &&
                filterDocument.TryGetValue("pipeline", out var pipeline) &&
                pipeline is BsonArray { Count: > 0 } stages &&
                stages[0] is BsonDocument { ElementCount: > 0 } firstStage &&
