@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v5.0.0.0] - 2026-10-18
+### :boom: BREAKING CHANGES
+- due to [`41c0af2`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/41c0af252453a80d330a21633c7ae003f32d2f33) - per-client instrumentation, Prometheus-convention metric names, pool/cluster metrics *(commit by [@myarichuk](https://github.com/myarichuk))*:
+
+  metric names, buckets and labels changed (see README "Upgrading from 1.x");  
+  InstrumentForPrometheus takes Action<MongoInstrumentationOptions>; MetricProviderRegistrar  
+  and the MongoConnection*Event types are removed.
+
+
+### :sparkles: New Features
+- [`41c0af2`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/41c0af252453a80d330a21633c7ae003f32d2f33) - per-client instrumentation, Prometheus-convention metric names, pool/cluster metrics *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`0e02f04`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/0e02f04a9721242f6b99db0289b7cc5842c227f9) - optional client label to tell clients apart on one Prometheus *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`c9db41a`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/c9db41a7384e5c902863826ab852891f37ef1692) - trace exemplars that point at the operation that caused them *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :bug: Bug Fixes
+- [`66ce8ec`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/66ce8ec4dc01686994fe61b0f709d3517f0cbfd1) - bugs *(commit by [@myarichuk](https://github.com/myarichuk))*
+- [`4f5f023`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/4f5f02350458ba187de440aea8947bbdd0d30893) - do some bug fixes *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+### :zap: Performance Improvements
+- [`526b893`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/526b893e60904aa6fc44abb0913039a3982298c4) - read command fields from wire bytes; cut per-command allocation from 1.6 KB to 112 B *(commit by [@myarichuk](https://github.com/myarichuk))*
+
+
 ## [v4.0.4.0] - 2026-09-29
 ### :boom: BREAKING CHANGES
 - due to [`9b6e1cf`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/9b6e1cfaba7b8de08dbfc3208168ef02c9b48466) - target net8.0 and MongoDB Driver 3 *(commit by [@myarichuk](https://github.com/myarichuk))*:
@@ -255,3 +277,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v3.0.9.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.2.0...v3.0.9.0
 [v3.0.26.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.24.0...v3.0.26.0
 [v4.0.4.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v3.0.26.0...v4.0.4.0
+[v5.0.0.0]: https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/compare/v4.0.4.0...v5.0.0.0
