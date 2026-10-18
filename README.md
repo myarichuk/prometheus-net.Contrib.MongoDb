@@ -179,30 +179,41 @@ dotnet run -c Release --project benchmarks/prometheus-net.Contrib.MongoDb.Benchm
 ```
 
 <!-- BENCHMARK-RESULTS:START -->
-**Environment:** BenchmarkDotNet v0.15.8, Windows 11 on Hyper-V (virtualized — absolute times
-move between runs, so treat time deltas as approximate), Intel Core Ultra 7 155H, .NET 10.0.9.
-Backend is an in-process MongoDB wire-protocol double, so absolute times are dominated by the
-fake round-trip: the **delta columns are the instrumentation cost**. Allocation deltas are the
-stable signal.
+**Environment:** BenchmarkDotNet v0.15.8, macOS 26.3 on an Apple M2, .NET 10.0.12.
 
-| Scenario | Plain (mean) | Instrumented (mean) | Added time/op | Added alloc/op |
-|---|---|---|---|---|
-| InsertOne | 322.8 us | 387.4 us | +64.6 us | +6.39 KB |
-| InsertMany x100 | 669.7 us | 760.9 us | +91.2 us | +34.78 KB |
-| FindOne | 1,161.1 us | 1,143.8 us | within noise | +9.48 KB |
-| FindBulk x1000 docs | 3,165.4 us | 3,615.3 us | +449.9 us | +10.74 KB (~11 B/doc) |
-| FindFiltered | 2,967.9 us | 2,509.5 us | within noise | within noise |
-| FailingFind | 437.9 us | 471.9 us | +34.0 us | +7.86 KB |
+**Per command** (`PerCommandBenchmarks`): a command's start and success events through the
+whole instrumentation and every provider, with no driver or network around it. This is the
+precise cost of the library.
+
+| Configuration | Mean per command | Allocated per command |
+|---|---|---|
+| Building the driver events alone (baseline) | 63 ns | 320 B |
+| Default | 911 ns | 1,872 B |
+| `MeasureSizes = false` | 825 ns | 1,872 B |
+| `NormalizeLabels` set | 920 ns | 1,872 B |
+| Collection labels past `MaxCollectionLabels` | 963 ns | 1,872 B |
+| Prometheus and a listened-to `Meter` | 936 ns | 1,872 B |
+
+**End to end** (`MongoBenchmarks`): plain vs. instrumented client against an in-process
+MongoDB wire-protocol double. Absolute times are dominated by the fake round trip, and
+allocations include the in-process server, so only time deltas are meaningful, and those
+move by ±10 µs between runs.
+
+| Scenario | Plain (mean) | Instrumented (mean) | Added time/op |
+|---|---|---|---|
+| InsertOne | 95.1 µs | 107.6 µs | +12 µs |
+| InsertMany x100 | 328.0 µs | 396.4 µs | within noise (σ ≈ 100 µs) |
+| FindOne | 353.4 µs | 377.5 µs | +24 µs |
+| FindBulk x1000 docs | 1,406.7 µs | 1,570.3 µs | +164 µs |
+| FindFiltered | 1,877.7 µs | 1,752.3 µs | within noise |
+| FailingFind | 217.2 µs | 232.1 µs | +15 µs |
 
 Takeaways:
 
-- Single-digit KB and tens of microseconds per command on the hot path (events are pooled,
-  metric children are cached, sizes are counted without materializing buffers, filter walks
-  use rented arrays).
-- Bulk replies scale at roughly a dozen bytes per document — replies are never copied,
-  only scanned for cursor bookkeeping and measured with a counting stream.
-- GC pressure is unchanged on the bulk path (identical Gen0/Gen1/Gen2 counts
-  with and without instrumentation).
+- The instrumentation itself costs about 1 µs and 2 KB per command; the label cap, the
+  normaliser and a second backend are each within ±5% of that.
+- Reply inspection does not grow with batch size: cursor ids and batch counts are read from
+  the reply's wire bytes, and sizes from buffer lengths (see `ParsingBenchmarks`).
 <!-- BENCHMARK-RESULTS:END -->
 
 ### Memory usage

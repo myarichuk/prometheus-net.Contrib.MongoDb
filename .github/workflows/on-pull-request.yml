@@ -46,3 +46,11 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+      env:
+        # MetricNamesTests writes a full scrape here for the promtool check below.
+        METRICS_EXPOSITION_PATH: ${{ runner.temp }}/metrics.prom
+    - name: Lint metrics exposition (promtool)
+      if: runner.os == 'Linux'
+      run: |
+        test -s "$RUNNER_TEMP/metrics.prom"
+        docker run --rm -i --entrypoint promtool prom/prometheus:v2.53.0 check metrics < "$RUNNER_TEMP/metrics.prom"
