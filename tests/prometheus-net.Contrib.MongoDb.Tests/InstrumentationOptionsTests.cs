@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using MongoDB.Bson;
 using Prometheus;
@@ -74,6 +74,48 @@ public class InstrumentationOptionsTests
     }
 
     [Fact]
+    public async Task Clients_with_a_client_label_report_separate_series_on_one_registry()
+    {
+        var registry = Metrics.NewCustomRegistry();
+        var orders = new EventReplay("db", NewSession(o =>
+        {
+            o.Registry = registry;
+            o.ClientLabel = "orders-api";
+        }));
+        var billing = new EventReplay("db", NewSession(o =>
+        {
+            o.Registry = registry;
+            o.ClientLabel = "billing";
+        }));
+        var unlabelled = new EventReplay("db", NewSession(o => o.Registry = registry));
+
+        orders.Succeed("count", new BsonDocument("count", "shared"), CountReply, operationId: 1);
+        orders.Succeed("count", new BsonDocument("count", "shared"), CountReply, operationId: 2);
+        billing.Succeed("count", new BsonDocument("count", "shared"), CountReply, operationId: 3);
+        unlabelled.Succeed("count", new BsonDocument("count", "shared"), CountReply, operationId: 4);
+        orders.Start("count", new BsonDocument("count", "shared"), operationId: 5);
+        billing.Start("count", new BsonDocument("count", "shared"), operationId: 6);
+        billing.Start("count", new BsonDocument("count", "shared"), operationId: 7);
+
+        var exposition = await orders.Session.ExpositionAsync();
+        Assert.Contains("""mongodb_client_command_duration_seconds_count{command_type="count",status="success",target_collection="shared",target_db="db",client="orders-api"} 2""", exposition);
+        Assert.Contains("""mongodb_client_command_duration_seconds_count{command_type="count",status="success",target_collection="shared",target_db="db",client="billing"} 1""", exposition);
+        Assert.Contains("""mongodb_client_command_duration_seconds_count{command_type="count",status="success",target_collection="shared",target_db="db"} 1""", exposition);
+        Assert.Contains("""mongodb_client_commands_in_flight{client="orders-api"} 1""", exposition);
+        Assert.Contains("""mongodb_client_commands_in_flight{client="billing"} 2""", exposition);
+        Assert.Contains("mongodb_client_commands_in_flight 0", exposition);
+    }
+
+    [Fact]
+    public void An_empty_client_label_adds_no_label()
+    {
+        var replay = new EventReplay("db", NewSession(o => o.ClientLabel = string.Empty));
+        replay.Succeed("count", new BsonDocument("count", "c"), CountReply, operationId: 1);
+
+        Assert.Equal(1, replay.Provider<CommandDurationMetricProvider>().CommandDuration.WithLabels("count", "success", "c", "db").Count);
+    }
+
+    [Fact]
     public void Meter_receives_the_same_metrics_under_dotted_names()
     {
         using var meter = new Meter($"test.{Guid.NewGuid():N}");
@@ -95,6 +137,7 @@ public class InstrumentationOptionsTests
         {
             o.Registry = null;
             o.Meter = meter;
+            o.ClientLabel = "metered-app";
         }));
         replay.Succeed("count", new BsonDocument("count", "metered"), CountReply, operationId: 1, duration: TimeSpan.FromMilliseconds(4));
         replay.Start("count", new BsonDocument("count", "metered"), operationId: 2);
@@ -105,6 +148,7 @@ public class InstrumentationOptionsTests
         Assert.Equal(0.004, duration.Value, precision: 6);
         Assert.Equal("count", duration.Tags["command_type"]);
         Assert.Equal("metered", duration.Tags["target_collection"]);
+        Assert.Equal("metered-app", duration.Tags["client"]);
         Assert.Equal(new MongoInstrumentationOptions().DurationBuckets, ((Histogram<double>)duration.Instrument).Advice?.HistogramBucketBoundaries);
 
         // Both commands were sent, so both have a request size.
@@ -115,6 +159,7 @@ public class InstrumentationOptionsTests
 
         var inFlight = Assert.Single(measurements, m => m.Instrument.Name == "mongodb.client.commands_in_flight");
         Assert.Equal(1, inFlight.Value);
+        Assert.Equal("metered-app", inFlight.Tags["client"]);
     }
 
     [Theory]

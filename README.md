@@ -72,6 +72,7 @@ the same registry share its metrics.
 settings.InstrumentForPrometheus(o =>
 {
     o.Registry = myRegistry;               // default: Metrics.DefaultRegistry; null = Meter only
+    o.ClientLabel = settings.ApplicationName; // default null: adds client="..." to every series
     o.DurationBuckets = Histogram.ExponentialBuckets(0.001, 2, 14);
     o.NormalizeLabels = (db, coll) => (TenantDb.IsMatch(db) ? "tenant_*" : db, coll);
     o.MaxCollectionLabels = 500;           // default 1000; further pairs are recorded as "__other__"
@@ -84,6 +85,15 @@ settings.InstrumentForPrometheus(o =>
 
 `ClusterConfigurator` handlers set on the settings before the call keep running; the
 instrumentation adds its own after them.
+
+### Telling clients apart
+
+Several applications (or several clients in one) reporting to one Prometheus are usually
+told apart by their scrape target's `job`/`instance` labels. When that is not enough, set
+`o.ClientLabel`: every series of that client then carries `client="<value>"`, including
+`mongodb_client_commands_in_flight`. Clients on one registry may mix labelled and
+unlabelled. The value multiplies every series, so keep it to a fixed handful of names (the
+application name, `"primary"`/`"analytics"`), never something per request or per tenant.
 
 ### OpenTelemetry / Meter
 
@@ -163,8 +173,9 @@ A ready-made dashboard covering every metric above is in
 category and code, retries, pool checkout and server selection waits, server RTT and type
 changes, queries, cursors and why they closed, payload sizes, connections, and the
 instrumentation's own health. In Grafana use **Dashboards → Import**, upload the file and
-pick your Prometheus data source. The `db`, `collection` and `server` variables filter the
-panels they apply to.
+pick your Prometheus data source. The `client`, `db`, `collection` and `server` variables
+filter the panels they apply to; `client` is empty, and filters nothing, unless clients set
+`ClientLabel`.
 
 ## Performance
 
@@ -268,6 +279,8 @@ The instrumentation bounds this:
   pairs past the cap are recorded as `__other__` / `__other__` and counted in
   `mongodb_client_instrumentation_label_overflow_total`, so the client's memory stays
   bounded as well as the series count.
+- `ClientLabel` multiplies every series by the number of distinct client names; leave it
+  unset when the scrape target already identifies the application.
 - `MeasureSizes = false` drops the two size histograms, which are the largest per-pair
   series (each bucket is a series).
 

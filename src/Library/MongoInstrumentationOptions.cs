@@ -1,4 +1,4 @@
-using System.Diagnostics.Metrics;
+﻿using System.Diagnostics.Metrics;
 using Prometheus;
 using PrometheusNet.MongoDb.Handlers;
 
@@ -30,6 +30,15 @@ public sealed class MongoInstrumentationOptions
     /// so an OpenTelemetry Prometheus exporter reproduces the Prometheus names exactly.
     /// </summary>
     public Meter? Meter { get; set; }
+
+    /// <summary>
+    /// Labels every metric of this client with <c>client="&lt;value&gt;"</c>, to tell apart
+    /// several clients or applications reporting to one Prometheus. Off (null) by default.
+    /// Typically the client's <see cref="MongoDB.Driver.MongoClientSettings.ApplicationName"/>:
+    /// <c>o.ClientLabel = settings.ApplicationName</c>. Keep it to a fixed handful of values:
+    /// it multiplies every series.
+    /// </summary>
+    public string? ClientLabel { get; set; }
 
     /// <summary>
     /// Buckets of <c>mongodb_client_command_duration_seconds</c>, 0.5 ms to 8 s by default.

@@ -40,7 +40,7 @@ internal sealed class InstrumentationSession : ICollectSource
         ArgumentNullException.ThrowIfNull(options);
 
         Options = options;
-        Sink = new MetricSink(options.Registry, options.Meter);
+        Sink = new MetricSink(options.Registry, options.Meter, options.ClientLabel);
         Hub = new EventHub(Sink.Counter(
             "mongodb_client_instrumentation_handler_errors_total",
             "Exceptions thrown by metric providers while handling instrumentation events",

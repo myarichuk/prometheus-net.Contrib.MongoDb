@@ -6,7 +6,7 @@
     "prometheus-net"
   ],
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "timezone": "browser",
   "refresh": "30s",
@@ -24,6 +24,29 @@
         "current": {}
       },
       {
+        "name": "client",
+        "label": "Client",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "query": {
+          "query": "label_values(mongodb_client_command_duration_seconds_count, client)",
+          "refId": "v"
+        },
+        "definition": "label_values(mongodb_client_command_duration_seconds_count, client)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "sort": 1
+      },
+      {
         "name": "db",
         "label": "Database",
         "type": "query",
@@ -32,10 +55,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(mongodb_client_command_duration_seconds_count, target_db)",
+          "query": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\"}, target_db)",
           "refId": "v"
         },
-        "definition": "label_values(mongodb_client_command_duration_seconds_count, target_db)",
+        "definition": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\"}, target_db)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,
@@ -55,10 +78,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(mongodb_client_command_duration_seconds_count{target_db=~\"$db\"}, target_collection)",
+          "query": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\"}, target_collection)",
           "refId": "v"
         },
-        "definition": "label_values(mongodb_client_command_duration_seconds_count{target_db=~\"$db\"}, target_collection)",
+        "definition": "label_values(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\"}, target_collection)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,
@@ -78,10 +101,10 @@
           "uid": "${datasource}"
         },
         "query": {
-          "query": "label_values(mongodb_client_pool_connections, server)",
+          "query": "label_values(mongodb_client_pool_connections{client=~\"$client\"}, server)",
           "refId": "v"
         },
-        "definition": "label_values(mongodb_client_pool_connections, server)",
+        "definition": "label_values(mongodb_client_pool_connections{client=~\"$client\"}, server)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,
@@ -148,7 +171,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_duration_seconds_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
+          "expr": "sum(rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
         }
       ]
     },
@@ -189,7 +212,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_duration_seconds_count{target_db=~\"$db\",target_collection=~\"$collection\",status=\"failure\"}[$__rate_interval])) / sum(rate(mongodb_client_command_duration_seconds_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
+          "expr": "sum(rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\",status=\"failure\"}[$__rate_interval])) / sum(rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
         }
       ]
     },
@@ -230,7 +253,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))"
         }
       ]
     },
@@ -271,7 +294,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{server=~\"$server\"}[$__rate_interval])))"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))"
         }
       ]
     },
@@ -312,7 +335,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(mongodb_client_commands_in_flight)"
+          "expr": "sum(mongodb_client_commands_in_flight{client=~\"$client\"})"
         }
       ]
     },
@@ -353,7 +376,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_retries_total{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
+          "expr": "sum(rate(mongodb_client_command_retries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))"
         }
       ]
     },
@@ -417,7 +440,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (command_type) (rate(mongodb_client_command_duration_seconds_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (command_type) (rate(mongodb_client_command_duration_seconds_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{command_type}}"
         }
       ]
@@ -469,7 +492,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "p50"
         },
         {
@@ -478,7 +501,7 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "p95"
         },
         {
@@ -487,7 +510,7 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "p99"
         }
       ]
@@ -539,7 +562,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_duration_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "{{command_type}}"
         }
       ]
@@ -591,7 +614,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,target_db,target_collection) (rate(mongodb_client_command_duration_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le,target_db,target_collection) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "{{target_db}}.{{target_collection}}"
         }
       ]
@@ -660,7 +683,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (category) (rate(mongodb_client_command_errors_total{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (category) (rate(mongodb_client_command_errors_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{category}}"
         }
       ]
@@ -712,7 +735,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (code_name, retryable) (rate(mongodb_client_command_errors_total{target_db=~\"$db\",target_collection=~\"$collection\",code_name!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (code_name, retryable) (rate(mongodb_client_command_errors_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\",code_name!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{code_name}} (retryable={{retryable}})"
         }
       ]
@@ -764,7 +787,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (command_type,error_type) (rate(mongodb_client_command_errors_total{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (command_type,error_type) (rate(mongodb_client_command_errors_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{command_type}} {{error_type}}"
         }
       ]
@@ -816,7 +839,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (command_type) (rate(mongodb_client_command_retries_total{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (command_type) (rate(mongodb_client_command_retries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{command_type}}"
         }
       ]
@@ -881,7 +904,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{server=~\"$server\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
           "legendFormat": "p50"
         },
         {
@@ -890,7 +913,7 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{server=~\"$server\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
           "legendFormat": "p95"
         },
         {
@@ -899,7 +922,7 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{server=~\"$server\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
           "legendFormat": "p99"
         }
       ]
@@ -951,7 +974,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (server,reason) (rate(mongodb_client_pool_checkout_failures_total{server=~\"$server\"}[$__rate_interval]))",
+          "expr": "sum by (server,reason) (rate(mongodb_client_pool_checkout_failures_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
           "legendFormat": "{{server}} {{reason}}"
         }
       ]
@@ -1003,7 +1026,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (server) (mongodb_client_pool_connections_in_use{server=~\"$server\"})",
+          "expr": "sum by (server) (mongodb_client_pool_connections_in_use{client=~\"$client\",server=~\"$server\"})",
           "legendFormat": "in use {{server}}"
         },
         {
@@ -1012,7 +1035,7 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "sum by (server) (mongodb_client_pool_connections{server=~\"$server\"})",
+          "expr": "sum by (server) (mongodb_client_pool_connections{client=~\"$client\",server=~\"$server\"})",
           "legendFormat": "pooled {{server}}"
         }
       ]
@@ -1064,7 +1087,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (server) (increase(mongodb_client_pool_cleared_total{server=~\"$server\"}[$__rate_interval]))",
+          "expr": "sum by (server) (increase(mongodb_client_pool_cleared_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
           "legendFormat": "{{server}}"
         }
       ]
@@ -1116,7 +1139,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,operation) (rate(mongodb_client_server_selection_duration_seconds_bucket{}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le,operation) (rate(mongodb_client_server_selection_duration_seconds_bucket{client=~\"$client\",}[$__rate_interval])))",
           "legendFormat": "{{operation}}"
         }
       ]
@@ -1168,7 +1191,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (operation) (rate(mongodb_client_server_selection_failures_total[$__rate_interval]))",
+          "expr": "sum by (operation) (rate(mongodb_client_server_selection_failures_total{client=~\"$client\"}[$__rate_interval]))",
           "legendFormat": "{{operation}}"
         }
       ]
@@ -1233,7 +1256,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "max by (server) (mongodb_client_server_rtt_seconds{server=~\"$server\"})",
+          "expr": "max by (server) (mongodb_client_server_rtt_seconds{client=~\"$client\",server=~\"$server\"})",
           "legendFormat": "{{server}}"
         }
       ]
@@ -1285,7 +1308,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (server,new_type) (increase(mongodb_client_server_type_changes_total{server=~\"$server\"}[$__rate_interval]))",
+          "expr": "sum by (server,new_type) (increase(mongodb_client_server_type_changes_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
           "legendFormat": "{{server}} -> {{new_type}}"
         }
       ]
@@ -1337,7 +1360,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (server) (rate(mongodb_client_server_heartbeat_failures_total{server=~\"$server\"}[$__rate_interval]))",
+          "expr": "sum by (server) (rate(mongodb_client_server_heartbeat_failures_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
           "legendFormat": "{{server}}"
         }
       ]
@@ -1402,7 +1425,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (query_type) (rate(mongodb_client_queries_total{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (query_type) (rate(mongodb_client_queries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{query_type}}"
         }
       ]
@@ -1454,7 +1477,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_db,target_collection) (rate(mongodb_client_queries_total{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (target_db,target_collection) (rate(mongodb_client_queries_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{target_db}}.{{target_collection}}"
         }
       ]
@@ -1506,7 +1529,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,query_type,target_collection) (rate(mongodb_client_query_filter_size_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le,query_type,target_collection) (rate(mongodb_client_query_filter_size_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "{{query_type}} {{target_collection}}"
         }
       ]
@@ -1558,7 +1581,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_collection) (rate(mongodb_client_cursor_documents_sum{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])) / sum by (target_collection) (rate(mongodb_client_cursor_documents_count{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (target_collection) (rate(mongodb_client_cursor_documents_sum{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])) / sum by (target_collection) (rate(mongodb_client_cursor_documents_count{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{target_collection}}"
         }
       ]
@@ -1623,7 +1646,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_db,target_collection) (mongodb_client_cursors_open{target_db=~\"$db\",target_collection=~\"$collection\"})",
+          "expr": "sum by (target_db,target_collection) (mongodb_client_cursors_open{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"})",
           "legendFormat": "{{target_db}}.{{target_collection}}"
         }
       ]
@@ -1675,7 +1698,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "p50"
         },
         {
@@ -1684,7 +1707,7 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "p95"
         },
         {
@@ -1693,7 +1716,7 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "p99"
         }
       ]
@@ -1749,7 +1772,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (reason) (rate(mongodb_client_cursors_closed_total{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum by (reason) (rate(mongodb_client_cursors_closed_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "{{reason}}"
         }
       ]
@@ -1801,7 +1824,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (target_db,target_collection,reason) (increase(mongodb_client_cursors_closed_total{target_db=~\"$db\",target_collection=~\"$collection\",reason=~\"abandoned|server_expired\"}[$__rate_interval]))",
+          "expr": "sum by (target_db,target_collection,reason) (increase(mongodb_client_cursors_closed_total{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\",reason=~\"abandoned|server_expired\"}[$__rate_interval]))",
           "legendFormat": "{{target_db}}.{{target_collection}} {{reason}}"
         }
       ]
@@ -1866,7 +1889,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_request_size_bytes_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_request_size_bytes_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "{{command_type}}"
         }
       ]
@@ -1918,7 +1941,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_response_size_bytes_bucket{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_response_size_bytes_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
           "legendFormat": "{{command_type}}"
         }
       ]
@@ -1970,7 +1993,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_request_size_bytes_sum{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum(rate(mongodb_client_command_request_size_bytes_sum{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "sent"
         }
       ]
@@ -2022,7 +2045,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(rate(mongodb_client_command_response_size_bytes_sum{target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
+          "expr": "sum(rate(mongodb_client_command_response_size_bytes_sum{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval]))",
           "legendFormat": "received"
         }
       ]
@@ -2087,7 +2110,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum by (server) (rate(mongodb_client_connections_opened_total{server=~\"$server\"}[$__rate_interval]))",
+          "expr": "sum by (server) (rate(mongodb_client_connections_opened_total{client=~\"$client\",server=~\"$server\"}[$__rate_interval]))",
           "legendFormat": "{{server}}"
         }
       ]
@@ -2139,7 +2162,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{server=~\"$server\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
           "legendFormat": "p50"
         },
         {
@@ -2148,7 +2171,7 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{server=~\"$server\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
           "legendFormat": "p95"
         },
         {
@@ -2157,7 +2180,7 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{server=~\"$server\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
           "legendFormat": "p99"
         }
       ]
@@ -2222,7 +2245,7 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "sum(increase(mongodb_client_instrumentation_label_overflow_total[$__rate_interval]))",
+          "expr": "sum(increase(mongodb_client_instrumentation_label_overflow_total{client=~\"$client\"}[$__rate_interval]))",
           "legendFormat": "label overflow"
         },
         {
@@ -2231,7 +2254,7 @@
             "uid": "${datasource}"
           },
           "refId": "B",
-          "expr": "sum(increase(mongodb_client_instrumentation_orphaned_commands_total[$__rate_interval]))",
+          "expr": "sum(increase(mongodb_client_instrumentation_orphaned_commands_total{client=~\"$client\"}[$__rate_interval]))",
           "legendFormat": "orphaned commands"
         },
         {
@@ -2240,7 +2263,7 @@
             "uid": "${datasource}"
           },
           "refId": "C",
-          "expr": "sum by (provider) (increase(mongodb_client_instrumentation_handler_errors_total[$__rate_interval]))",
+          "expr": "sum by (provider) (increase(mongodb_client_instrumentation_handler_errors_total{client=~\"$client\"}[$__rate_interval]))",
           "legendFormat": "handler errors {{provider}}"
         }
       ]
