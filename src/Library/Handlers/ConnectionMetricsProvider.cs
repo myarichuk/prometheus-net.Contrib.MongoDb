@@ -1,95 +1,66 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Net;
+using MongoDB.Driver.Core.Connections;
+using MongoDB.Driver.Core.Events;
 using Prometheus;
 using PrometheusNet.MongoDb;
-using PrometheusNet.Contrib.MongoDb.Events;
 using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.Contrib.MongoDb.Handlers;
 
 /// <summary>
-/// Provides functionality for tracking and recording MongoDB connection metrics.
-/// Connections are tracked by driver-assigned <see cref="MongoDB.Driver.Core.Connections.ConnectionId"/>
-/// (unique per physical connection). Tracking by endpoint would collapse concurrent
-/// connections to the same server into one entry and lose close events.
+/// Connection churn per server: connections opened, and how long each one lived. Tracked by
+/// the driver's <see cref="ConnectionId"/>, unique per physical connection; tracking by
+/// server would collapse concurrent connections into one entry and lose close events.
 /// </summary>
-internal class ConnectionMetricsProvider : IMongoDbClientMetricProvider
+internal sealed class ConnectionMetricsProvider : IMongoDbClientMetricProvider
 {
-    private readonly ConcurrentDictionary<MongoDB.Driver.Core.Connections.ConnectionId, long> _connectionStartTimestamps = new();
+    // 1 s to 4.5 h: the pool's idle and lifetime limits are minutes to hours, and a short
+    // lifetime means churn (network errors, pool clears).
+    private static readonly double[] LifetimeBuckets = Histogram.ExponentialBuckets(1, 4, 8);
 
-    public ConnectionMetricsProvider()
+    private readonly ConcurrentDictionary<ConnectionId, long> _openedTimestamps = new();
+
+    private readonly MetricChildCache<EndPoint, CounterChild> _openedCache;
+
+    private readonly MetricChildCache<EndPoint, HistogramChild> _lifetimeCache;
+
+    public ConnectionMetricsProvider(InstrumentationSession session)
     {
-        _creationCache = new(key => ConnectionCreationRate.WithLabels(key.Item1, key.Item2));
-        _durationCache = new(key => ConnectionDuration.WithLabels(key.Item1, key.Item2));
+        ConnectionsOpened = session.Sink.Counter(
+            "mongodb_client_connections_opened_total",
+            "Connections opened to the server",
+            "server");
+        ConnectionLifetime = session.Sink.Histogram(
+            "mongodb_client_connection_lifetime_seconds",
+            "How long connections stayed open, until closed or failed (seconds)",
+            LifetimeBuckets,
+            "server");
+        _openedCache = new(server => ConnectionsOpened.WithLabels(ServerLabel.Of(server)));
+        _lifetimeCache = new(server => ConnectionLifetime.WithLabels(ServerLabel.Of(server)));
     }
 
-    /// <summary>
-    /// A counter metric that captures the rate of MongoDB connection creations.
-    /// </summary>
-    internal readonly Counter ConnectionCreationRate = Metrics.CreateCounter(
-        "mongodb_client_connection_creation_rate",
-        "Rate of MongoDB connection creations",
-        new CounterConfiguration
-        {
-            LabelNames = new[] { "cluster_id", "end_point" },
-        });
+    internal CounterFamily ConnectionsOpened { get; }
 
-    /// <summary>
-    /// A histogram metric that captures the duration it takes to close MongoDB connections.
-    /// </summary>
-    internal readonly Histogram ConnectionDuration = Metrics.CreateHistogram(
-        "mongodb_client_connection_duration",
-        "Duration it takes to close MongoDB connections (seconds)",
-        new HistogramConfiguration
-        {
-            LabelNames = new[] { "cluster_id", "end_point" },
-        });
+    internal HistogramFamily ConnectionLifetime { get; }
 
-    /// <summary>
-    /// Handles the event triggered when a MongoDB connection is created.
-    /// </summary>
-    /// <param name="event">Event information for the created MongoDB connection.</param>
-    private readonly MetricChildCache<(string, string), Counter.Child> _creationCache;
-
-    private readonly MetricChildCache<(string, string), Histogram.Child> _durationCache;
-
-    public void Handle(MongoConnectionOpenedEvent @event)
+    public void Handle(ConnectionOpenedEvent e)
     {
-        _connectionStartTimestamps.TryAdd(@event.ConnectionId, Stopwatch.GetTimestamp());
-
-        _creationCache
-                .Get((@event.ClusterId.ToString(), @event.Endpoint))
-                .Inc();
+        _openedTimestamps.TryAdd(e.ConnectionId, Stopwatch.GetTimestamp());
+        _openedCache.Get(e.ServerId.EndPoint).Inc();
     }
 
-    /// <summary>
-    /// Handles the event triggered when a MongoDB connection is failed.
-    /// </summary>
-    /// <param name="event">Event information for the failed MongoDB connection.</param>
-    public void Handle(MongoConnectionFailedEvent @event)
+    // A connection that fails is closed afterwards too; whichever comes first ends it.
+    public void Handle(ConnectionFailedEvent e) => Closed(e.ConnectionId, e.ServerId.EndPoint);
+
+    public void Handle(ConnectionClosedEvent e) => Closed(e.ConnectionId, e.ServerId.EndPoint);
+
+    private void Closed(ConnectionId connection, EndPoint server)
     {
-        if (_connectionStartTimestamps.TryRemove(@event.ConnectionId, out var startTimestamp))
+        if (_openedTimestamps.TryRemove(connection, out var openedTimestamp))
         {
-            _durationCache
-                    .Get((@event.ClusterId.ToString(), @event.Endpoint))
-                    .Observe(GetElapsedSeconds(startTimestamp));
+            _lifetimeCache.Get(server).Observe((Stopwatch.GetTimestamp() - openedTimestamp) / (double)Stopwatch.Frequency);
         }
     }
-
-    /// <summary>
-    /// Handles the event triggered when a MongoDB connection is closed.
-    /// </summary>
-    /// <param name="event">Event information for the closed MongoDB connection.</param>
-    public void Handle(MongoConnectionClosedEvent @event)
-    {
-        if (_connectionStartTimestamps.TryRemove(@event.ConnectionId, out var startTimestamp))
-        {
-            _durationCache
-                    .Get((@event.ClusterId.ToString(), @event.Endpoint))
-                    .Observe(GetElapsedSeconds(startTimestamp));
-        }
-    }
-
-    private static double GetElapsedSeconds(long startTimestamp) =>
-        (Stopwatch.GetTimestamp() - startTimestamp) / (double)Stopwatch.Frequency;
 }

@@ -10,7 +10,7 @@ namespace PrometheusNet.MongoDb;
 /// prometheus registry itself (one entry per combination you actually observe).
 /// </summary>
 internal sealed class MetricChildCache<TKey, TChild>
-    where TKey : struct
+    where TKey : notnull
     where TChild : class
 {
     private readonly ConcurrentDictionary<TKey, TChild> _children = new();

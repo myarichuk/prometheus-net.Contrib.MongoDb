@@ -1,58 +1,46 @@
-﻿using Prometheus;
 using PrometheusNet.MongoDb.Events;
 
 namespace PrometheusNet.MongoDb.Handlers;
 
 /// <summary>
-/// Provides functionality for tracking and recording MongoDB command durations.
+/// Records how long commands take, from the moment the driver sends them to their reply.
+/// The wait for a connection and for server selection comes before that and is recorded
+/// by the pool and cluster providers.
 /// </summary>
-internal class CommandDurationMetricProvider : IMongoDbClientMetricProvider
+internal sealed class CommandDurationMetricProvider : IMongoDbClientMetricProvider
 {
     private const string SuccessStatus = "success";
     private const string FailureStatus = "failure";
 
-    /// <summary>
-    /// A histogram metric that captures the duration of MongoDB commands.
-    /// </summary>
-    /// <remarks>
-    /// The metric includes labels for the type of command, the status (success or failure), target collection, and target database.
-    /// Durations are measured in seconds.
-    /// </remarks>
-    public readonly Histogram CommandDurationHistogram = Metrics.CreateHistogram(
-        "mongodb_client_command_duration",
-        "Duration of MongoDB commands (seconds)",
-        new HistogramConfiguration
+    private readonly MetricChildCache<(string, string, string, string), HistogramChild> _durationCache;
+
+    public CommandDurationMetricProvider(InstrumentationSession session)
+    {
+        CommandDuration = session.Sink.Histogram(
+            "mongodb_client_command_duration_seconds",
+            "Duration of commands, from sending them to their reply (seconds)",
+            session.Options.DurationBuckets,
+            "command_type",
+            "status",
+            "target_collection",
+            "target_db");
+        _durationCache = new(key => CommandDuration.WithLabels(key.Item1, key.Item2, key.Item3, key.Item4));
+    }
+
+    internal HistogramFamily CommandDuration { get; }
+
+    public void Handle(MongoCommandEventSuccess e) => Observe(e, SuccessStatus);
+
+    public void Handle(MongoCommandEventFailure e) => Observe(e, FailureStatus);
+
+    // An unknown duration is skipped, never recorded as 0 s: a fake zero drags every quantile down.
+    private void Observe(MongoCommandEvent e, string status)
+    {
+        if (e.Duration is { } duration)
         {
-            Buckets = new[] { 0.1, 0.5, 1, 5, 30 },
-            LabelNames = new[] { "command_type", "status", "target_collection", "target_db" },
-        });
-
-    private readonly MetricChildCache<(string, string, string, string), Histogram.Child> _durationCache;
-
-    public CommandDurationMetricProvider() =>
-        _durationCache = new(key => CommandDurationHistogram.WithLabels(key.Item1, key.Item2, key.Item3, key.Item4));
-
-    /// <summary>
-    /// Handles the event triggered when a MongoDB command successfully completes.
-    /// </summary>
-    /// <param name="e">Event information for the successfully completed MongoDB command.</param>
-    /// <remarks>
-    /// This will record the duration of successful MongoDB commands in the histogram with appropriate labels.
-    /// </remarks>
-    public void Handle(MongoCommandEventSuccess e) =>
-        _durationCache
-            .Get((e.OperationRawType, SuccessStatus, e.TargetCollection, e.TargetDatabase))
-            .Observe(e.Duration.GetValueOrDefault().TotalSeconds);
-
-    /// <summary>
-    /// Handles the event triggered when a MongoDB command fails.
-    /// </summary>
-    /// <param name="e">Event information for the failed MongoDB command.</param>
-    /// <remarks>
-    /// This will record the duration of failed MongoDB commands in the histogram with appropriate labels.
-    /// </remarks>
-    public void Handle(MongoCommandEventFailure e) =>
-        _durationCache
-            .Get((e.OperationRawType, FailureStatus, e.TargetCollection, e.TargetDatabase))
-            .Observe(e.Duration.GetValueOrDefault().TotalSeconds);
+            _durationCache
+                .Get((e.OperationRawType, status, e.TargetCollection, e.TargetDatabase))
+                .Observe(duration.TotalSeconds);
+        }
+    }
 }

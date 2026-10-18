@@ -1,5 +1,4 @@
 using MongoDB.Driver;
-using Prometheus;
 using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.MongoDb.Tests;
@@ -61,30 +60,16 @@ public class CommandDurationTests
         });
     }
 
-    private async Task TestMongoOperation(string operationType, Func<IMongoCollection<TestDocument>, Task> operation)
+    private static async Task TestMongoOperation(string operationType, Func<IMongoCollection<TestDocument>, Task> operation)
     {
-        if (!MetricProviderRegistrar.TryGetProvider<CommandDurationMetricProvider>(out var provider))
+        await MongoTestContext.RunAsync(async (collection, session) =>
         {
-            throw new Exception($"Failed to fetch an instance of {nameof(CommandDurationMetricProvider)}");
-        }
-
-        double initialCount = 0;
-        double updatedCount = 0;
-
-        await MongoTestContext.RunAsync(async collection =>
-        {
-            initialCount = GetSampleValue(provider.CommandDurationHistogram, operationType, "success", "testCollection", "test");
-
             await operation(collection);
 
-            updatedCount = GetSampleValue(provider.CommandDurationHistogram, operationType, "success", "testCollection", "test");
+            var duration = session.Provider<CommandDurationMetricProvider>().CommandDuration
+                .WithLabels(operationType, "success", MongoTestContext.Collection, MongoTestContext.Database);
+            Assert.True(duration.Count >= 1);
+            Assert.True(duration.Sum > 0);
         });
-
-        Assert.True(updatedCount > initialCount); // account for parallelism, so it won't be necessarily +1 difference
     }
-
-    private double GetSampleValue(Histogram metric, string commandType, string status, string collectionName, string db) =>
-        metric
-            .WithLabels(commandType, status, collectionName, db)
-            .Count;
 }

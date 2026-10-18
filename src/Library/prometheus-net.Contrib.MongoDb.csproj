@@ -10,5 +10,7 @@
   <ItemGroup>
     <PackageReference Include="MongoDB.Driver" Version="3.12.0" />
     <PackageReference Include="prometheus-net" Version="[8.2.1,]" />
+    <!-- 9.x on net8: histogram bucket advice and synchronous gauges for the opt-in Meter. -->
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.0" />
   </ItemGroup>
 </Project>

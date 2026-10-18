@@ -3,7 +3,7 @@ using PrometheusNet.MongoDb.Handlers;
 
 namespace PrometheusNet.MongoDb.Tests
 {
-    [Collection("NonConcurrentCollection")]    public class QueryCountProviderTests
+    public class QueryCountProviderTests
     {
         [Theory]
         [InlineData(1)]
@@ -11,24 +11,17 @@ namespace PrometheusNet.MongoDb.Tests
         [InlineData(7)]
         public async Task Query_count_metric_should_properly_work(int expectedQueryCount)
         {
-            if (!MetricProviderRegistrar.TryGetProvider<QueryCountMetricProvider>(out var provider) || provider == null)
-            {
-                throw new Exception($"Failed to fetch an instance of {nameof(QueryCountMetricProvider)}");
-            }
-
-            var before = provider.QueryCount.WithLabels("find", MongoTestContext.Collection, MongoTestContext.Database).Value;
-
-            await MongoTestContext.RunAsync(async testCollection =>
+            await MongoTestContext.RunAsync(async (testCollection, session) =>
             {
                 for (int i = 0; i < expectedQueryCount; i++)
                 {
                     _ = (await testCollection.FindAsync<TestDocument>(Builders<TestDocument>.Filter.Empty)).ToList();
                 }
+
+                var queries = session.Provider<QueryCountMetricProvider>().Queries
+                    .WithLabels("find", MongoTestContext.Collection, MongoTestContext.Database);
+                Assert.Equal(expectedQueryCount, queries.Value);
             });
-
-            var after = provider.QueryCount.WithLabels("find", MongoTestContext.Collection, MongoTestContext.Database).Value;
-
-            Assert.Equal(before + expectedQueryCount, after);
         }
     }
 }

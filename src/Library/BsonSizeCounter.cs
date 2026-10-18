@@ -6,6 +6,9 @@ namespace PrometheusNet.MongoDb;
 
 /// <summary>
 /// Measures the exact BSON wire size of a document without materializing it.
+/// Sizes are computed structurally first (<see cref="RawBson.TryGetSize"/>): O(1) for a
+/// wire-encoded document, O(top-level elements) for a materialized command whose payload
+/// documents are still wire-encoded. Serializing through a counting stream is the fallback.
 /// Serializing to a <c>byte[]</c> just to read <c>Length</c> (the old
 /// <c>ToBson().Length</c> pattern) allocates a buffer as large as the payload
 /// on every command — megabytes per second of pure garbage on batch-heavy
@@ -21,6 +24,17 @@ internal static class BsonSizeCounter
     private static CountingStream? _cachedStream;
 
     public static int GetSizeInBytes(BsonDocument document)
+    {
+        // Wire-encoded documents know their size; only materialized parts are measured.
+        if (RawBson.TryGetSize(document, out var size))
+        {
+            return size;
+        }
+
+        return GetSizeBySerializing(document);
+    }
+
+    internal static int GetSizeBySerializing(BsonDocument document)
     {
         var counter = _cachedStream ??= new CountingStream();
         counter.Reset();

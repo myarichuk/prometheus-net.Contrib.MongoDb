@@ -1,3 +1,4 @@
+using System.Net;
 using MongoDB.Bson;
 
 namespace PrometheusNet.MongoDb.Events;
@@ -61,21 +62,23 @@ public abstract class MongoCommandEvent
 
     /// <summary>
     /// Cursor ids named by a <c>killCursors</c> command (<c>cursors: [...]</c>), or
-    /// <c>null</c> for every other command. Cursor bookkeeping keyed by
-    /// <see cref="CursorKey"/> uses these to release state: a <c>killCursors</c> is a
-    /// separate driver operation with its own <see cref="OperationId"/>, so it can
-    /// only be matched to the cursor it closes by id.
+    /// <c>null</c> for every other command. A <c>killCursors</c> is a separate driver
+    /// operation with its own <see cref="OperationId"/>, so it can only be matched to
+    /// the cursors it closes by id.
     /// </summary>
     public List<long>? KilledCursorIds { get; set; }
 
     /// <summary>
-    /// Stable key for per-cursor bookkeeping: the cursor id while the cursor is open,
-    /// falling back to the operation id for single-batch cursors (whose reply id is 0)
-    /// and for events that carry no cursor information. Keying by operation id alone
-    /// is wrong: a <c>killCursors</c> runs as its own operation, and operation ids
-    /// can repeat across connections.
+    /// The server the command ran on. Cursor ids are unique per server, not globally, so
+    /// cursor bookkeeping is keyed by server and id.
     /// </summary>
-    public long CursorKey => CursorId is long id and not 0 ? id : OperationId;
+    internal EndPoint? ServerEndPoint { get; set; }
+
+    /// <summary>
+    /// Whether a cursor this command opens is exempt from the server's idle timeout:
+    /// <c>noCursorTimeout</c>, a tailable <c>find</c>, or a <c>$changeStream</c> aggregate.
+    /// </summary>
+    internal bool CursorNeverTimesOut { get; set; }
 
     /// <summary>
     /// Clears every field so a pooled instance can be reused without leaking
@@ -98,6 +101,8 @@ public abstract class MongoCommandEvent
         Duration = null;
         CursorId = null;
         KilledCursorIds = null;
+        ServerEndPoint = null;
+        CursorNeverTimesOut = false;
         CommandDocument = null;
     }
 

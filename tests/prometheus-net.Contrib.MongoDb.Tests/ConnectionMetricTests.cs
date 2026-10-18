@@ -1,68 +1,30 @@
-﻿using MongoDB.Driver;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using PrometheusNet.Contrib.MongoDb.Handlers;
-using Xunit.Abstractions;
+using static PrometheusNet.MongoDb.Tests.TestMetrics;
 
 namespace PrometheusNet.MongoDb.Tests;
 
 public class ConnectionMetricsTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public ConnectionMetricsTests(ITestOutputHelper output)
+    [Fact]
+    public async Task Connections_are_counted_and_their_lifetime_recorded_when_closed()
     {
-        _output = output;
-    }
+        await using var fake = await FakeMongo.StartAsync("connections");
+        var connections = fake.Provider<ConnectionMetricsProvider>();
+        var coll = await fake.SeedAsync("connection_lifetime", documents: 1);
+        Assert.True(connections.ConnectionsOpened.WithLabels(fake.Server).Value >= 1);
+        Assert.Equal(0, connections.ConnectionLifetime.WithLabels(fake.Server).Count);
 
-    [Fact(Skip = "Too racy, this is an issue with the driver (sometimes sends the event sometimes doesn't)")]
-    public async Task TestConnectionCreationAndClosure()
-    {
-        if (!MetricProviderRegistrar.TryGetProvider<ConnectionMetricsProvider>(out var provider) || provider == null)
+        // The server drops the connection mid-command; the driver closes it and retries the read.
+        await fake.FailPointAsync(new BsonDocument
         {
-            throw new Exception($"Failed to fetch an instance of {nameof(ConnectionMetricsProvider)}");
-        }
+            { "failCommands", new BsonArray { "find" } },
+            { "closeConnection", true },
+        });
+        Assert.Single(await coll.Find(FilterDefinition<BsonDocument>.Empty).ToListAsync());
 
-        double initialCreationCount = 0;
-        double initialClosureCount = 0;
-
-        var endpoint = string.Empty;
-
-        await MongoTestContext.RunAsync(
-            async (collection, ctx) =>
-            {
-                endpoint = ctx.ConnectionString.Replace("mongodb://", string.Empty);
-
-                initialCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-                initialClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
-
-                await collection.InsertOneAsync(new TestDocument { Id = "1", Name = "Test1" });
-
-                _ = collection.Find(x => x.Id == "2").ToList();
-            },
-            outputHelper: _output);
-
-        int retryCount = 0;
-        const int maxRetries = 5;
-
-        double updatedCreationCount = 0;
-        double updatedClosureCount = 0;
-
-        while (retryCount < maxRetries)
-        {
-            await Task.Delay(500);
-
-            updatedCreationCount = provider.ConnectionCreationRate.WithLabels("1", endpoint).Value;
-            updatedClosureCount = provider.ConnectionDuration.WithLabels("1", endpoint).Count;
-
-            if (updatedCreationCount > initialCreationCount && updatedClosureCount > initialClosureCount)
-            {
-                break;
-            }
-
-            retryCount++;
-        }
-
-        Assert.True(updatedCreationCount > initialCreationCount);
-        Assert.True(updatedClosureCount > initialClosureCount);
+        await WaitUntilAsync(() => connections.ConnectionLifetime.WithLabels(fake.Server).Count >= 1);
+        Assert.True(connections.ConnectionsOpened.WithLabels(fake.Server).Value >= 2);
     }
-
 }
