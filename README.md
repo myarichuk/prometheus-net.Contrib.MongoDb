@@ -19,7 +19,7 @@ metrics — no sidecar process, no server polling.
   - [CPU load](#cpu-load)
   - [Metric cardinality](#metric-cardinality)
 - [Custom metric providers](#custom-metric-providers)
-- [Upgrading from 1.x](#upgrading-from-1x)
+- [Upgrading from 4.x](#upgrading-from-4x)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
@@ -315,13 +315,13 @@ they run on the driver's event thread — and do not retain event document refer
 exception in a provider never reaches the driver; it is counted in
 `mongodb_client_instrumentation_handler_errors_total`.
 
-## Upgrading from 1.x
+## Upgrading from 4.x
 
-2.0 renames metrics to the Prometheus conventions (base units in the name, `_total` on
+5.0 renames metrics to the Prometheus conventions (base units in the name, `_total` on
 counters) and changes buckets, so dashboards and alerts need updating. The dashboard in
 this repository is already updated.
 
-| 1.x | 2.0 |
+| 4.x | 5.0 |
 |---|---|
 | `mongodb_client_command_duration` | `mongodb_client_command_duration_seconds` (buckets 0.5 ms–8 s) |
 | `mongodb_client_command_errors_total` (Summary) | `mongodb_client_command_errors_total` (Counter, more labels) |

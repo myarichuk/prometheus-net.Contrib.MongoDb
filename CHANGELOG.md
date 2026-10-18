@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### :boom: BREAKING CHANGES
 - due to [`41c0af2`](https://github.com/myarichuk/prometheus-net.Contrib.MongoDb/commit/41c0af252453a80d330a21633c7ae003f32d2f33) - per-client instrumentation, Prometheus-convention metric names, pool/cluster metrics *(commit by [@myarichuk](https://github.com/myarichuk))*:
 
-  metric names, buckets and labels changed (see README "Upgrading from 1.x");  
+  metric names, buckets and labels changed (see README "Upgrading from 4.x");  
   InstrumentForPrometheus takes Action<MongoInstrumentationOptions>; MetricProviderRegistrar  
   and the MongoConnection*Event types are removed.
 
