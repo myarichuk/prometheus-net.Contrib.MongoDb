@@ -125,21 +125,23 @@ internal sealed class InstrumentationSession : ICollectSource
         cb.Subscribe<CommandFailedEvent>(OnCommandFailed);
 
         // Connection, pool, server selection and monitoring events need no correlation:
-        // the driver's structs go to the providers as they are.
+        // the driver's structs go to the providers as they are. Most are raised by an
+        // operation, or by pool maintenance on its behalf (see TraceContext.Live); server
+        // monitoring never is, so its metrics carry no exemplars.
         var hub = Hub;
-        cb.Subscribe<ConnectionOpenedEvent>(hub.Publish);
-        cb.Subscribe<ConnectionClosedEvent>(hub.Publish);
-        cb.Subscribe<ConnectionFailedEvent>(hub.Publish);
-        cb.Subscribe<ConnectionPoolCheckedOutConnectionEvent>(hub.Publish);
-        cb.Subscribe<ConnectionPoolCheckingOutConnectionFailedEvent>(hub.Publish);
-        cb.Subscribe<ConnectionPoolCheckedInConnectionEvent>(hub.Publish);
-        cb.Subscribe<ConnectionPoolAddedConnectionEvent>(hub.Publish);
-        cb.Subscribe<ConnectionPoolRemovedConnectionEvent>(hub.Publish);
-        cb.Subscribe<ConnectionPoolClearedEvent>(hub.Publish);
-        cb.Subscribe<ClusterSelectedServerEvent>(hub.Publish);
-        cb.Subscribe<ClusterSelectingServerFailedEvent>(hub.Publish);
-        cb.Subscribe<ServerHeartbeatFailedEvent>(hub.Publish);
-        cb.Subscribe<ServerDescriptionChangedEvent>(hub.Publish);
+        cb.Subscribe(TraceContext.Live<ConnectionOpenedEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionClosedEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionFailedEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionPoolCheckedOutConnectionEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionPoolCheckingOutConnectionFailedEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionPoolCheckedInConnectionEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionPoolAddedConnectionEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionPoolRemovedConnectionEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ConnectionPoolClearedEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ClusterSelectedServerEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Live<ClusterSelectingServerFailedEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Detached<ServerHeartbeatFailedEvent>(hub.Publish));
+        cb.Subscribe(TraceContext.Detached<ServerDescriptionChangedEvent>(hub.Publish));
     }
 
     /// <summary>Runs before each collection: sweeps stale state, reports commands in flight.</summary>

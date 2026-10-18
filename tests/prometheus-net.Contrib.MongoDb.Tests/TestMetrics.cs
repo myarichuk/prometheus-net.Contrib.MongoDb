@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Prometheus;
 using PrometheusNet.Contrib.MongoDb;
 
@@ -25,6 +25,14 @@ internal static class TestMetrics
     {
         using var stream = new MemoryStream();
         await session.Sink.Registry!.CollectAndExportAsTextAsync(stream, default);
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    /// <summary>The OpenMetrics exposition, the only format that carries exemplars.</summary>
+    public static async Task<string> OpenMetricsAsync(this InstrumentationSession session)
+    {
+        using var stream = new MemoryStream();
+        await session.Sink.Registry!.CollectAndExportAsTextAsync(stream, ExpositionFormat.OpenMetricsText, default);
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 

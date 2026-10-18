@@ -114,6 +114,24 @@ Instrument names are the Prometheus names in dotted form with the unit split off
 turns them back into exactly the names below, so the Grafana dashboard works with either
 backend. Histograms carry the same buckets as bucket advice.
 
+### Exemplars: from a slow percentile to its trace
+
+When the application traces (OpenTelemetry, or any `ActivitySource` listener), every
+command metric carries an exemplar with the `trace_id` and `span_id` of the operation that
+recorded it: prometheus-net takes them from `Activity.Current`, and the driver raises its
+command events in the operation's own context. If the driver's own tracing is on
+(`AddSource("MongoDB.Driver")`), the span is the command's, one per attempt, so a retried
+command links each try. Grafana shows them as dots on the duration panels, linked to the
+trace.
+
+Nothing needs configuring here; Prometheus needs `--enable-feature=exemplar-storage` and
+scrapes them in the OpenMetrics format (which prometheus-net serves when asked). On the
+Meter, the OpenTelemetry SDK's own exemplar filter applies.
+
+What no operation caused carries no exemplar: server monitoring (heartbeat failures, server
+type changes), the sweeps that run during a scrape (abandoned cursors, orphaned commands),
+and events raised under an operation's context after that operation has finished.
+
 ## Metrics exposed
 
 | Metric | Type | Labels | What it tells you |

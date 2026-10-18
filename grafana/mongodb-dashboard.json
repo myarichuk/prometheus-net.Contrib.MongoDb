@@ -6,7 +6,7 @@
     "prometheus-net"
   ],
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "editable": true,
   "timezone": "browser",
   "refresh": "30s",
@@ -253,7 +253,8 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
+          "exemplar": true
         }
       ]
     },
@@ -294,7 +295,8 @@
             "uid": "${datasource}"
           },
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))"
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
+          "exemplar": true
         }
       ]
     },
@@ -493,7 +495,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p50"
+          "legendFormat": "p50",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -502,7 +505,8 @@
           },
           "refId": "B",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p95"
+          "legendFormat": "p95",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -511,7 +515,8 @@
           },
           "refId": "C",
           "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p99"
+          "legendFormat": "p99",
+          "exemplar": true
         }
       ]
     },
@@ -563,7 +568,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{command_type}}"
+          "legendFormat": "{{command_type}}",
+          "exemplar": true
         }
       ]
     },
@@ -615,7 +621,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le,target_db,target_collection) (rate(mongodb_client_command_duration_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{target_db}}.{{target_collection}}"
+          "legendFormat": "{{target_db}}.{{target_collection}}",
+          "exemplar": true
         }
       ]
     },
@@ -905,7 +912,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
-          "legendFormat": "p50"
+          "legendFormat": "p50",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -914,7 +922,8 @@
           },
           "refId": "B",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
-          "legendFormat": "p95"
+          "legendFormat": "p95",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -923,7 +932,8 @@
           },
           "refId": "C",
           "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_pool_checkout_duration_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
-          "legendFormat": "p99"
+          "legendFormat": "p99",
+          "exemplar": true
         }
       ]
     },
@@ -1140,7 +1150,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le,operation) (rate(mongodb_client_server_selection_duration_seconds_bucket{client=~\"$client\",}[$__rate_interval])))",
-          "legendFormat": "{{operation}}"
+          "legendFormat": "{{operation}}",
+          "exemplar": true
         }
       ]
     },
@@ -1530,7 +1541,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le,query_type,target_collection) (rate(mongodb_client_query_filter_size_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{query_type}} {{target_collection}}"
+          "legendFormat": "{{query_type}} {{target_collection}}",
+          "exemplar": true
         }
       ]
     },
@@ -1699,7 +1711,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p50"
+          "legendFormat": "p50",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -1708,7 +1721,8 @@
           },
           "refId": "B",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p95"
+          "legendFormat": "p95",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -1717,7 +1731,8 @@
           },
           "refId": "C",
           "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_cursor_lifetime_seconds_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "p99"
+          "legendFormat": "p99",
+          "exemplar": true
         }
       ]
     },
@@ -1890,7 +1905,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_request_size_bytes_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{command_type}}"
+          "legendFormat": "{{command_type}}",
+          "exemplar": true
         }
       ]
     },
@@ -1942,7 +1958,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le,command_type) (rate(mongodb_client_command_response_size_bytes_bucket{client=~\"$client\",target_db=~\"$db\",target_collection=~\"$collection\"}[$__rate_interval])))",
-          "legendFormat": "{{command_type}}"
+          "legendFormat": "{{command_type}}",
+          "exemplar": true
         }
       ]
     },
@@ -2163,7 +2180,8 @@
           },
           "refId": "A",
           "expr": "histogram_quantile(0.5, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
-          "legendFormat": "p50"
+          "legendFormat": "p50",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -2172,7 +2190,8 @@
           },
           "refId": "B",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
-          "legendFormat": "p95"
+          "legendFormat": "p95",
+          "exemplar": true
         },
         {
           "datasource": {
@@ -2181,7 +2200,8 @@
           },
           "refId": "C",
           "expr": "histogram_quantile(0.99, sum by (le) (rate(mongodb_client_connection_lifetime_seconds_bucket{client=~\"$client\",server=~\"$server\"}[$__rate_interval])))",
-          "legendFormat": "p99"
+          "legendFormat": "p99",
+          "exemplar": true
         }
       ]
     },

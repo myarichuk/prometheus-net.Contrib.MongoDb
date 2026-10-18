@@ -264,8 +264,14 @@ internal sealed class CollectHooks
         }
     }
 
-    /// <summary>Collects every live session, reporting each one's in-flight count with its client label.</summary>
-    public void Collect(Action<string?, int> report)
+    /// <summary>
+    /// Collects every live session, reporting each one's in-flight count with its client
+    /// label. Sweeps run detached from the trace context: Activity.Current here is the
+    /// scrape's, and what a sweep records (abandoned cursors, orphaned commands) is not.
+    /// </summary>
+    public void Collect(Action<string?, int> report) => TraceContext.Detached(CollectCore, report);
+
+    private void CollectCore(Action<string?, int> report)
     {
         var now = Stopwatch.GetTimestamp();
         lock (_sources)
